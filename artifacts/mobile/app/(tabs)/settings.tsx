@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -14,9 +15,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/AuthContext";
 import { useCards } from "@/context/CardsContext";
-import { useNotifications } from "@/hooks/useNotifications";
 import { useColors } from "@/hooks/useColors";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   cancelAllNotifications,
   requestNotificationPermissions,
@@ -95,6 +97,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { cards, stats, resetMonthlyStatuses } = useCards();
   const { permissionStatus, scheduledCount, requestPermissions, refresh } = useNotifications();
+  const { user, logout, lockApp, pin, clearPin } = useAuth();
   const [twilioPhone, setTwilioPhone] = useState("");
   const [twilioSid, setTwilioSid] = useState("");
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -171,6 +174,63 @@ export default function SettingsScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             await resetMonthlyStatuses();
             await refresh();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLockApp = () => {
+    if (!pin) {
+      Alert.alert(
+        "No PIN set",
+        "Set a PIN first to enable app lock.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Set PIN", onPress: () => router.push("/setup-pin" as any) },
+        ]
+      );
+      return;
+    }
+    lockApp();
+    router.replace("/lock" as any);
+  };
+
+  const handleSetupPin = () => {
+    router.push("/setup-pin" as any);
+  };
+
+  const handleRemovePin = () => {
+    Alert.alert(
+      "Remove PIN Lock",
+      "Are you sure you want to remove the app PIN? Anyone with access to your device can open the app.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove PIN",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await clearPin();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Sign Out",
+      "You'll need to sign in again to access your cards.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await logout();
+            router.replace("/(auth)/login" as any);
           },
         },
       ]
@@ -319,10 +379,42 @@ export default function SettingsScreen() {
           />
         </SectionCard>
 
+        {/* Account & Security */}
+        <SectionCard title="ACCOUNT">
+          <SettingRow icon="user" label="Signed in as" value={user?.email ?? ""} />
+          <SettingRow
+            icon="shield"
+            label={pin ? "Change PIN" : "Set up app PIN"}
+            value={pin ? "4-digit PIN active" : "Not configured"}
+            onPress={handleSetupPin}
+          />
+          {pin && (
+            <>
+              <SettingRow
+                icon="lock"
+                label="Lock app now"
+                onPress={handleLockApp}
+              />
+              <SettingRow
+                icon="unlock"
+                label="Remove PIN lock"
+                onPress={handleRemovePin}
+                destructive
+              />
+            </>
+          )}
+          <SettingRow
+            icon="log-out"
+            label="Sign out"
+            onPress={handleLogout}
+            destructive
+          />
+        </SectionCard>
+
         {/* About */}
         <SectionCard title="ABOUT">
           <SettingRow icon="credit-card" label="App version" value="1.0.0" />
-          <SettingRow icon="shield" label="Data stored" value="Locally on device" />
+          <SettingRow icon="database" label="Data stored" value="Secure cloud database" />
         </SectionCard>
       </View>
     </ScrollView>

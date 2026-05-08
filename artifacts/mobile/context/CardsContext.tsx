@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+import { useAuth } from "@/context/AuthContext";
+import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import {
   cancelCardNotifications,
   scheduleAllCardNotifications,
@@ -11,19 +12,20 @@ export type PaymentStatus = "Pending" | "Paid" | "Overdue";
 
 export interface CreditCard {
   id: string;
+  userId?: number;
   cardHolderName: string;
   cardName: string;
   lastFourDigits: string;
   bankName: string;
   dueDate: number;
   paymentStatus: PaymentStatus;
-  paidDate?: string;
+  paidDate?: string | null;
   expiryMonth: number;
   expiryYear: number;
-  phoneNumber: string;
+  phoneNumber?: string | null;
   isActive: boolean;
-  createdAt: string;
-  notes?: string;
+  createdAt?: string;
+  notes?: string | null;
 }
 
 export interface CardStats {
@@ -40,7 +42,9 @@ interface CardsContextValue {
   activeCards: CreditCard[];
   stats: CardStats;
   loading: boolean;
-  addCard: (card: Omit<CreditCard, "id" | "createdAt" | "paymentStatus">) => Promise<void>;
+  error: string | null;
+  refresh: () => Promise<void>;
+  addCard: (card: Omit<CreditCard, "id" | "createdAt" | "paymentStatus" | "userId">) => Promise<void>;
   updateCard: (id: string, updates: Partial<CreditCard>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
   markAsPaid: (id: string) => Promise<void>;
@@ -49,89 +53,12 @@ interface CardsContextValue {
   getCard: (id: string) => CreditCard | undefined;
 }
 
-const STORAGE_KEY = "@credit_cards_v1";
-
-const SAMPLE_CARDS: CreditCard[] = [
-  {
-    id: "1",
-    cardHolderName: "Rahul Sharma",
-    cardName: "Millennia Credit Card",
-    lastFourDigits: "4521",
-    bankName: "HDFC",
-    dueDate: 12,
-    paymentStatus: "Paid",
-    paidDate: new Date().toISOString(),
-    expiryMonth: 8,
-    expiryYear: 2027,
-    phoneNumber: "+919876543210",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    cardHolderName: "Priya Mehta",
-    cardName: "Amazon Pay Card",
-    lastFourDigits: "7834",
-    bankName: "ICICI",
-    dueDate: 18,
-    paymentStatus: "Pending",
-    expiryMonth: 3,
-    expiryYear: 2026,
-    phoneNumber: "+919876543211",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    cardHolderName: "Arjun Patel",
-    cardName: "SimplySave Card",
-    lastFourDigits: "2290",
-    bankName: "SBI",
-    dueDate: 5,
-    paymentStatus: "Overdue",
-    expiryMonth: 11,
-    expiryYear: 2025,
-    phoneNumber: "+919876543212",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    cardHolderName: "Sneha Kapoor",
-    cardName: "Magnus Credit Card",
-    lastFourDigits: "6612",
-    bankName: "Axis",
-    dueDate: 25,
-    paymentStatus: "Pending",
-    expiryMonth: 6,
-    expiryYear: 2028,
-    phoneNumber: "+919876543213",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "5",
-    cardHolderName: "Karan Singh",
-    cardName: "811 Dream Different",
-    lastFourDigits: "9001",
-    bankName: "Kotak",
-    dueDate: 20,
-    paymentStatus: "Pending",
-    expiryMonth: 1,
-    expiryYear: 2026,
-    phoneNumber: "+919876543214",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export function getNextDueDate(dueDate: number): Date {
   const now = new Date();
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), dueDate);
   if (now.getDate() > dueDate) {
     return new Date(now.getFullYear(), now.getMonth() + 1, dueDate);
   }
-  return thisMonth;
+  return new Date(now.getFullYear(), now.getMonth(), dueDate);
 }
 
 export function getDaysUntilDue(dueDate: number): number {
@@ -139,8 +66,7 @@ export function getDaysUntilDue(dueDate: number): number {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   nextDue.setHours(0, 0, 0, 0);
-  const diff = nextDue.getTime() - now.getTime();
-  return Math.round(diff / (1000 * 60 * 60 * 24));
+  return Math.round((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export function isExpiringSoon(card: CreditCard): boolean {
@@ -177,116 +103,138 @@ function computeStats(cards: CreditCard[]): CardStats {
   };
 }
 
+function normalizeCard(raw: Record<string, unknown>): CreditCard {
+  const card = {
+    id: raw.id as string,
+    userId: raw.userId as number | undefined,
+    cardHolderName: (raw.cardHolderName ?? raw.card_holder_name) as string,
+    cardName: (raw.cardName ?? raw.card_name) as string,
+    lastFourDigits: (raw.lastFourDigits ?? raw.last_four_digits) as string,
+    bankName: (raw.bankName ?? raw.bank_name) as string,
+    dueDate: Number(raw.dueDate ?? raw.due_date),
+    paymentStatus: ((raw.paymentStatus ?? raw.payment_status) as PaymentStatus) ?? "Pending",
+    paidDate: (raw.paidDate ?? raw.paid_date) as string | null | undefined,
+    expiryMonth: Number(raw.expiryMonth ?? raw.expiry_month),
+    expiryYear: Number(raw.expiryYear ?? raw.expiry_year),
+    phoneNumber: (raw.phoneNumber ?? raw.phone_number) as string | null | undefined,
+    isActive: Boolean(raw.isActive ?? raw.is_active ?? true),
+    createdAt: (raw.createdAt ?? raw.created_at) as string | undefined,
+    notes: raw.notes as string | null | undefined,
+  };
+  card.paymentStatus = computeStatus(card);
+  return card;
+}
+
 const CardsContext = createContext<CardsContextValue | null>(null);
 
 export function CardsProvider({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
   const [cards, setCards] = useState<CreditCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadCards();
-  }, []);
-
-  const loadCards = async () => {
+  const refresh = useCallback(async () => {
+    if (!token) { setCards([]); return; }
+    setLoading(true);
+    setError(null);
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: CreditCard[] = JSON.parse(raw);
-        const updated = parsed.map((c) => ({ ...c, paymentStatus: computeStatus(c) }));
-        setCards(updated);
-        scheduleAllCardNotifications(updated).catch(() => {});
-      } else {
-        const withStatus = SAMPLE_CARDS.map((c) => ({ ...c, paymentStatus: computeStatus(c) }));
-        setCards(withStatus);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(withStatus));
-        scheduleAllCardNotifications(withStatus).catch(() => {});
-      }
-    } catch {
-      setCards(SAMPLE_CARDS);
+      const raw = await apiGet<Record<string, unknown>[]>("/cards", token);
+      const normalized = raw.map(normalizeCard);
+      setCards(normalized);
+      scheduleAllCardNotifications(normalized).catch(() => {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load cards");
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  const saveCards = async (updated: CreditCard[]) => {
-    setCards(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const addCard = useCallback(
-    async (cardData: Omit<CreditCard, "id" | "createdAt" | "paymentStatus">) => {
+    async (cardData: Omit<CreditCard, "id" | "createdAt" | "paymentStatus" | "userId">) => {
+      if (!token) return;
       const newCard: CreditCard = {
         ...cardData,
         id: Date.now().toString() + Math.random().toString(36).substr(2, 6),
-        createdAt: new Date().toISOString(),
         paymentStatus: "Pending",
       };
       newCard.paymentStatus = computeStatus(newCard);
-      const next = [...cards, newCard];
-      await saveCards(next);
-      scheduleCardNotifications(newCard).catch(() => {});
+      const raw = await apiPost<Record<string, unknown>>("/cards", newCard, token);
+      const saved = normalizeCard(raw);
+      setCards((prev) => [...prev, saved]);
+      scheduleCardNotifications(saved).catch(() => {});
     },
-    [cards]
+    [token]
   );
 
   const updateCard = useCallback(
     async (id: string, updates: Partial<CreditCard>) => {
-      let updated_card: CreditCard | undefined;
-      const updated = cards.map((c) => {
-        if (c.id !== id) return c;
-        const merged = { ...c, ...updates };
-        merged.paymentStatus = computeStatus(merged);
-        updated_card = merged;
-        return merged;
-      });
-      await saveCards(updated);
-      if (updated_card) scheduleCardNotifications(updated_card).catch(() => {});
+      if (!token) return;
+      const current = cards.find((c) => c.id === id);
+      if (!current) return;
+      const merged = { ...current, ...updates };
+      merged.paymentStatus = computeStatus(merged);
+      const raw = await apiPut<Record<string, unknown>>(`/cards/${id}`, merged, token);
+      const saved = normalizeCard(raw);
+      setCards((prev) => prev.map((c) => (c.id === id ? saved : c)));
+      scheduleCardNotifications(saved).catch(() => {});
     },
-    [cards]
+    [token, cards]
   );
 
   const deleteCard = useCallback(
     async (id: string) => {
-      await saveCards(cards.filter((c) => c.id !== id));
+      if (!token) return;
+      await apiDelete(`/cards/${id}`, token);
+      setCards((prev) => prev.filter((c) => c.id !== id));
       cancelCardNotifications(id).catch(() => {});
     },
-    [cards]
+    [token]
   );
 
   const markAsPaid = useCallback(
     async (id: string) => {
-      const updated = cards.map((c) =>
-        c.id === id
-          ? { ...c, paymentStatus: "Paid" as PaymentStatus, paidDate: new Date().toISOString() }
-          : c
-      );
-      await saveCards(updated);
+      if (!token) return;
+      const current = cards.find((c) => c.id === id);
+      if (!current) return;
+      const updates = { paymentStatus: "Paid" as PaymentStatus, paidDate: new Date().toISOString() };
+      const raw = await apiPut<Record<string, unknown>>(`/cards/${id}`, { ...current, ...updates }, token);
+      const saved = normalizeCard(raw);
+      setCards((prev) => prev.map((c) => (c.id === id ? saved : c)));
       cancelCardNotifications(id).catch(() => {});
     },
-    [cards]
+    [token, cards]
   );
 
   const markAsPending = useCallback(
     async (id: string) => {
-      const updated = cards.map((c) =>
-        c.id === id ? { ...c, paymentStatus: "Pending" as PaymentStatus, paidDate: undefined } : c
-      );
-      await saveCards(updated);
-      const card = updated.find((c) => c.id === id);
-      if (card) scheduleCardNotifications(card).catch(() => {});
+      if (!token) return;
+      const current = cards.find((c) => c.id === id);
+      if (!current) return;
+      const updates = { paymentStatus: "Pending" as PaymentStatus, paidDate: null };
+      const raw = await apiPut<Record<string, unknown>>(`/cards/${id}`, { ...current, ...updates }, token);
+      const saved = normalizeCard(raw);
+      setCards((prev) => prev.map((c) => (c.id === id ? saved : c)));
+      scheduleCardNotifications(saved).catch(() => {});
     },
-    [cards]
+    [token, cards]
   );
 
   const resetMonthlyStatuses = useCallback(async () => {
-    const updated = cards.map((c) => ({
-      ...c,
-      paymentStatus: "Pending" as PaymentStatus,
-      paidDate: undefined,
-    }));
-    await saveCards(updated);
-    scheduleAllCardNotifications(updated).catch(() => {});
-  }, [cards]);
+    if (!token) return;
+    const updatedAll = await Promise.all(
+      cards.map(async (c) => {
+        const updates = { paymentStatus: "Pending" as PaymentStatus, paidDate: null };
+        const raw = await apiPut<Record<string, unknown>>(`/cards/${c.id}`, { ...c, ...updates }, token);
+        return normalizeCard(raw);
+      })
+    );
+    setCards(updatedAll);
+    scheduleAllCardNotifications(updatedAll).catch(() => {});
+  }, [token, cards]);
 
   const getCard = useCallback((id: string) => cards.find((c) => c.id === id), [cards]);
 
@@ -300,6 +248,8 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
         activeCards,
         stats,
         loading,
+        error,
+        refresh,
         addCard,
         updateCard,
         deleteCard,

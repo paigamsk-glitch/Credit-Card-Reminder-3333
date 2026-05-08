@@ -97,11 +97,13 @@ export default function CardDetailScreen() {
     ? new Date(card.paidDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "—";
 
-  const createdFormatted = new Date(card.createdAt).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const createdFormatted = card.createdAt
+    ? new Date(card.createdAt).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <ScrollView

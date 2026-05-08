@@ -7,7 +7,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -15,6 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CardsProvider } from "@/context/CardsContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -37,12 +38,46 @@ function NotificationRouter() {
   return null;
 }
 
+function RootGuard() {
+  const { user, token, isLoading, isLocked, pin } = useAuth();
+  const segments = useSegments();
+
+  if (isLoading) return null;
+
+  const inAuthGroup = segments[0] === "(auth)";
+  const onLock = segments[0] === "lock";
+  const onSetupPin = segments[0] === "setup-pin";
+
+  if (!token || !user) {
+    if (!inAuthGroup) return <Redirect href="/(auth)/login" />;
+    return null;
+  }
+
+  if (isLocked && pin) {
+    if (!onLock) return <Redirect href="/lock" />;
+    return null;
+  }
+
+  if (inAuthGroup || onLock || onSetupPin) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
       <NotificationRouter />
+      <RootGuard />
       <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="lock" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen
+          name="setup-pin"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         <Stack.Screen
           name="card/[id]"
           options={{
@@ -95,13 +130,15 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <CardsProvider>
-            <GestureHandlerRootView>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </CardsProvider>
+          <AuthProvider>
+            <CardsProvider>
+              <GestureHandlerRootView>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </CardsProvider>
+          </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
