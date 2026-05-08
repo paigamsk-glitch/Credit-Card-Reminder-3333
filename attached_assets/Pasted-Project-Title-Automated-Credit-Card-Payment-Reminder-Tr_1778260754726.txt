@@ -1,0 +1,182 @@
+Project Title: Automated Credit Card Payment Reminder & Tracking System
+
+Project Objective:
+Build a system to manage and automate reminders for 100+ credit cards, including bill due dates, card expiry tracking, payment confirmation, and automatic status updates.
+
+Core Requirements
+
+1. Data Management
+
+Use Google Sheets (or database) as the main data source.
+
+Required columns:
+
+- Card ID (unique identifier)
+- Card Holder Name
+- Card Name / Card Type
+- Last 4 Digits
+- Bank Name
+- Due Date (monthly bill due day)
+- First Reminder Date (5 days before due date)
+- Second Reminder Date (1 day before due date)
+- Payment Status (Pending / Paid / Overdue)
+- Paid Date
+- Expiry Month
+- Expiry Year
+- Expiry Alert Status
+- Phone Number
+- Payment Confirmation Link
+- Active Status (Yes/No)
+
+---
+
+2. Automated Payment Reminder System
+
+Build automation that runs daily.
+
+Conditions:
+
+- If first reminder date matches today and payment status is not paid → send WhatsApp reminder.
+- If second reminder date matches today and payment status is not paid → send urgent WhatsApp reminder.
+- If due date is passed and payment status is not paid → send overdue alert.
+
+Each card should trigger separate WhatsApp messages.
+
+---
+
+3. Payment Acknowledgement System
+
+User should not open Google Sheet manually.
+
+Requirement:
+Each WhatsApp reminder must include a link/button to mark payment as completed.
+
+Workflow:
+
+- User clicks payment link
+- Form opens (Google Form or custom web form)
+- Card ID auto-filled
+- User submits payment confirmation
+- System updates payment status to “Paid”
+- System updates paid date automatically
+
+---
+
+4. Card Expiry Alert System
+
+Track expiry month/year for each card.
+
+Conditions:
+
+- If card expiry is within 30 days → send expiry alert.
+- If card is expired → send expired card alert.
+
+Requirement:
+User can replace old card details with new card details.
+
+Old card should be marked inactive.
+
+---
+
+5. Dashboard System
+
+Build a dashboard showing:
+
+- Total cards
+- Paid cards
+- Pending cards
+- Overdue cards
+- Expiring cards
+- Bank-wise card count
+- Monthly payment summary
+
+Charts required:
+
+- Paid vs Pending chart
+- Bank-wise distribution chart
+- Overdue trend chart
+
+---
+
+6. Calendar Integration
+
+Integrate with Google Calendar:
+
+- Create due date events
+- Monthly recurring reminders
+- Optional backup reminders
+
+---
+
+7. Automation Platform
+
+Preferred tools:
+
+- Google Sheets
+- Google Forms
+- WhatsApp API (Twilio)
+- Make.com or Zapier
+
+Alternative:
+Custom web app (preferred if possible)
+
+---
+
+8. Optional Advanced Features
+
+- Search cards by holder name
+- Filter by bank
+- Filter by due date
+- Export monthly report
+- Email backup reminders
+- Payment history logs
+
+---
+
+Technical Requirements
+
+Preferred stack (if building app):
+Frontend:
+
+- React / Next.js
+
+Backend:
+
+- Node.js / Express
+
+Database:
+
+- MySQL / MongoDB / Firebase
+
+Automation:
+
+- WhatsApp API integration
+
+Hosting:
+
+- Vercel / Firebase / Render
+
+---
+
+Deliverables
+
+Student should provide:
+
+1. Full working system
+2. Source code
+3. Database structure
+4. Automation workflow
+5. Setup documentation
+6. User guide
+
+---
+
+Main Goal
+
+The goal is to create a simple and efficient system where:
+
+- User receives reminders automatically
+- User confirms payment in one click
+- System updates status automatically
+- User tracks expiry and overdue cards easily
+- User manages 100+ cards without opening spreadsheets daily
