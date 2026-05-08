@@ -1,6 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+import {
+  cancelCardNotifications,
+  scheduleAllCardNotifications,
+  scheduleCardNotifications,
+} from "@/lib/notifications";
+
 export type PaymentStatus = "Pending" | "Paid" | "Overdue";
 
 export interface CreditCard {
@@ -188,10 +194,12 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
         const parsed: CreditCard[] = JSON.parse(raw);
         const updated = parsed.map((c) => ({ ...c, paymentStatus: computeStatus(c) }));
         setCards(updated);
+        scheduleAllCardNotifications(updated).catch(() => {});
       } else {
         const withStatus = SAMPLE_CARDS.map((c) => ({ ...c, paymentStatus: computeStatus(c) }));
         setCards(withStatus);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(withStatus));
+        scheduleAllCardNotifications(withStatus).catch(() => {});
       }
     } catch {
       setCards(SAMPLE_CARDS);
@@ -214,20 +222,25 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
         paymentStatus: "Pending",
       };
       newCard.paymentStatus = computeStatus(newCard);
-      await saveCards([...cards, newCard]);
+      const next = [...cards, newCard];
+      await saveCards(next);
+      scheduleCardNotifications(newCard).catch(() => {});
     },
     [cards]
   );
 
   const updateCard = useCallback(
     async (id: string, updates: Partial<CreditCard>) => {
+      let updated_card: CreditCard | undefined;
       const updated = cards.map((c) => {
         if (c.id !== id) return c;
         const merged = { ...c, ...updates };
         merged.paymentStatus = computeStatus(merged);
+        updated_card = merged;
         return merged;
       });
       await saveCards(updated);
+      if (updated_card) scheduleCardNotifications(updated_card).catch(() => {});
     },
     [cards]
   );
@@ -235,6 +248,7 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
   const deleteCard = useCallback(
     async (id: string) => {
       await saveCards(cards.filter((c) => c.id !== id));
+      cancelCardNotifications(id).catch(() => {});
     },
     [cards]
   );
@@ -242,9 +256,12 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
   const markAsPaid = useCallback(
     async (id: string) => {
       const updated = cards.map((c) =>
-        c.id === id ? { ...c, paymentStatus: "Paid" as PaymentStatus, paidDate: new Date().toISOString() } : c
+        c.id === id
+          ? { ...c, paymentStatus: "Paid" as PaymentStatus, paidDate: new Date().toISOString() }
+          : c
       );
       await saveCards(updated);
+      cancelCardNotifications(id).catch(() => {});
     },
     [cards]
   );
@@ -255,6 +272,8 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
         c.id === id ? { ...c, paymentStatus: "Pending" as PaymentStatus, paidDate: undefined } : c
       );
       await saveCards(updated);
+      const card = updated.find((c) => c.id === id);
+      if (card) scheduleCardNotifications(card).catch(() => {});
     },
     [cards]
   );
@@ -266,6 +285,7 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
       paidDate: undefined,
     }));
     await saveCards(updated);
+    scheduleAllCardNotifications(updated).catch(() => {});
   }, [cards]);
 
   const getCard = useCallback((id: string) => cards.find((c) => c.id === id), [cards]);
@@ -275,7 +295,19 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CardsContext.Provider
-      value={{ cards, activeCards, stats, loading, addCard, updateCard, deleteCard, markAsPaid, markAsPending, resetMonthlyStatuses, getCard }}
+      value={{
+        cards,
+        activeCards,
+        stats,
+        loading,
+        addCard,
+        updateCard,
+        deleteCard,
+        markAsPaid,
+        markAsPending,
+        resetMonthlyStatuses,
+        getCard,
+      }}
     >
       {children}
     </CardsContext.Provider>
