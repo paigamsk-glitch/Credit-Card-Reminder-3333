@@ -10,7 +10,7 @@ const BANK_GRADIENTS: Record<string, readonly [string, string]> = {
   SBI: ["#1565C0", "#0D3F7C"],
   Axis: ["#6B21A8", "#4A0E80"],
   Kotak: ["#C05621", "#7B3200"],
-  Citi: ["#0E7490", "#0A4F63"],
+  ONE: ["#0D4F6B", "#062535"],
   AMEX: ["#1A7340", "#0D4A25"],
   YES: ["#7B1FA2", "#4A0072"],
   RBL: ["#C62828", "#8B0000"],
@@ -53,7 +53,9 @@ export function CardVisual({ card, compact = false }: CardVisualProps) {
         <View style={{ alignItems: "flex-end" }}>
           <Text style={styles.label}>EXPIRES</Text>
           <Text style={styles.expiry}>
-            {String(card.expiryMonth).padStart(2, "0")}/{String(card.expiryYear).slice(-2)}
+            {card.expiryMonth && card.expiryYear
+              ? `${String(card.expiryMonth).padStart(2, "0")}/${String(card.expiryYear).slice(-2)}`
+              : "——"}
           </Text>
         </View>
       </View>

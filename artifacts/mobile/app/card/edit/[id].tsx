@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCards } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
 
-const BANKS = ["HDFC", "ICICI", "SBI", "Axis", "Kotak", "Citi", "AMEX", "YES", "RBL", "IndusInd", "Other"];
+const BANKS = ["HDFC", "ICICI", "SBI", "Axis", "Kotak", "ONE", "AMEX", "YES", "RBL", "IndusInd", "Other"];
 
 interface FieldProps {
   label: string;
@@ -67,8 +67,8 @@ export default function EditCardScreen() {
   const [lastFourDigits, setLastFourDigits] = useState(card?.lastFourDigits ?? "");
   const [bankName, setBankName] = useState(card?.bankName ?? "");
   const [dueDate, setDueDate] = useState(card?.dueDate?.toString() ?? "");
-  const [expiryMonth, setExpiryMonth] = useState(card?.expiryMonth?.toString() ?? "");
-  const [expiryYear, setExpiryYear] = useState(card?.expiryYear?.toString() ?? "");
+  const [expiryMonth, setExpiryMonth] = useState(card?.expiryMonth && card.expiryMonth > 0 ? card.expiryMonth.toString() : "");
+  const [expiryYear, setExpiryYear] = useState(card?.expiryYear && card.expiryYear > 0 ? card.expiryYear.toString() : "");
   const [phoneNumber, setPhoneNumber] = useState(card?.phoneNumber ?? "");
   const [notes, setNotes] = useState(card?.notes ?? "");
 
@@ -82,15 +82,16 @@ export default function EditCardScreen() {
 
   const validate = () => {
     if (!cardHolderName.trim()) return "Card holder name is required";
-    if (!cardName.trim()) return "Card name is required";
     if (!lastFourDigits.trim() || lastFourDigits.length !== 4) return "Enter the last 4 digits of the card";
     if (!bankName) return "Please select a bank";
     const due = parseInt(dueDate);
     if (!dueDate || isNaN(due) || due < 1 || due > 31) return "Enter a valid due date (1–31)";
-    const mo = parseInt(expiryMonth);
-    const yr = parseInt(expiryYear);
-    if (!expiryMonth || isNaN(mo) || mo < 1 || mo > 12) return "Enter a valid expiry month (1–12)";
-    if (!expiryYear || isNaN(yr) || yr < 2024) return "Enter a valid expiry year (e.g., 2026)";
+    if (expiryMonth || expiryYear) {
+      const mo = parseInt(expiryMonth);
+      const yr = parseInt(expiryYear);
+      if (isNaN(mo) || mo < 1 || mo > 12) return "Enter a valid expiry month (1–12)";
+      if (isNaN(yr) || yr < 2024) return "Enter a valid expiry year (e.g., 2026)";
+    }
     return null;
   };
 
@@ -100,7 +101,7 @@ export default function EditCardScreen() {
       Alert.alert("Validation Error", error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(true);
     await updateCard(card.id, {
       cardHolderName: cardHolderName.trim(),
@@ -108,8 +109,8 @@ export default function EditCardScreen() {
       lastFourDigits: lastFourDigits.trim(),
       bankName,
       dueDate: parseInt(dueDate),
-      expiryMonth: parseInt(expiryMonth),
-      expiryYear: parseInt(expiryYear),
+      expiryMonth: expiryMonth ? parseInt(expiryMonth) : 0,
+      expiryYear: expiryYear ? parseInt(expiryYear) : 0,
       phoneNumber: phoneNumber.trim(),
       notes: notes.trim() || undefined,
     });
@@ -128,7 +129,7 @@ export default function EditCardScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Field label="Card Holder Name" value={cardHolderName} onChangeText={setCardHolderName} placeholder="e.g., Rahul Sharma" />
-        <Field label="Card Name / Type" value={cardName} onChangeText={setCardName} placeholder="e.g., Millennia Credit Card" />
+        <Field label="Card Name / Type" value={cardName} onChangeText={setCardName} placeholder="e.g., Millennia Credit Card" optional />
         <Field label="Last 4 Digits" value={lastFourDigits} onChangeText={(v) => setLastFourDigits(v.replace(/\D/g, ""))} placeholder="4521" keyboardType="numeric" maxLength={4} />
 
         <View style={styles.fieldWrap}>
@@ -161,10 +162,10 @@ export default function EditCardScreen() {
 
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Field label="Expiry Month" value={expiryMonth} onChangeText={(v) => setExpiryMonth(v.replace(/\D/g, ""))} placeholder="MM" keyboardType="numeric" maxLength={2} />
+            <Field label="Expiry Month" value={expiryMonth} onChangeText={(v) => setExpiryMonth(v.replace(/\D/g, ""))} placeholder="MM" keyboardType="numeric" maxLength={2} optional />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="Expiry Year" value={expiryYear} onChangeText={(v) => setExpiryYear(v.replace(/\D/g, ""))} placeholder="YYYY" keyboardType="numeric" maxLength={4} />
+            <Field label="Expiry Year" value={expiryYear} onChangeText={(v) => setExpiryYear(v.replace(/\D/g, ""))} placeholder="YYYY" keyboardType="numeric" maxLength={4} optional />
           </View>
         </View>
 

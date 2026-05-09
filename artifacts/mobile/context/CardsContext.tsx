@@ -70,6 +70,7 @@ export function getDaysUntilDue(dueDate: number): number {
 }
 
 export function isExpiringSoon(card: CreditCard): boolean {
+  if (!card.expiryMonth || !card.expiryYear) return false;
   const now = new Date();
   const expiryEnd = new Date(card.expiryYear, card.expiryMonth, 0);
   const days = Math.ceil((expiryEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -77,6 +78,7 @@ export function isExpiringSoon(card: CreditCard): boolean {
 }
 
 export function isExpired(card: CreditCard): boolean {
+  if (!card.expiryMonth || !card.expiryYear) return false;
   const now = new Date();
   const expiryEnd = new Date(card.expiryYear, card.expiryMonth, 0);
   return now > expiryEnd;
