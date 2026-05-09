@@ -58,7 +58,9 @@ function RootGuard() {
     return null;
   }
 
-  if (inAuthGroup || onLock || onSetupPin) {
+  // Redirect away from auth screens and lock screen when fully authenticated and unlocked.
+  // setup-pin is intentionally excluded — authenticated users can reach it from Settings.
+  if (inAuthGroup || onLock) {
     return <Redirect href="/(tabs)" />;
   }
 

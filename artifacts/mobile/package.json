@@ -57,6 +57,6 @@
   },
   "dependencies": {
     "expo-notifications": "^0.32.17",
-    "expo-secure-store": "^55.0.13"
+    "expo-secure-store": "^15.0.8"
   }
 }

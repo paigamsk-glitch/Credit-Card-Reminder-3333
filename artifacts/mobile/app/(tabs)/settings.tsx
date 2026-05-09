@@ -192,6 +192,9 @@ export default function SettingsScreen() {
       );
       return;
     }
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     lockApp();
     router.replace("/lock" as any);
   };
@@ -228,9 +231,11 @@ export default function SettingsScreen() {
           text: "Sign Out",
           style: "destructive",
           onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            }
+            // logout() clears the token → RootGuard automatically redirects to /(auth)/login
             await logout();
-            router.replace("/(auth)/login" as any);
           },
         },
       ]
