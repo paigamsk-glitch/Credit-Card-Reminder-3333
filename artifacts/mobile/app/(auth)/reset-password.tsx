@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -15,34 +15,46 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-export default function LoginScreen() {
+export default function ResetPasswordScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { email, code: prefillCode } = useLocalSearchParams<{ email: string; code: string }>();
+
+  const [code, setCode] = useState(prefillCode ?? "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
+  const handleReset = async () => {
     setError("");
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password");
-      return;
-    }
+    if (!code.trim()) { setError("Enter the reset code"); return; }
+    if (newPassword.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (newPassword !== confirmPassword) { setError("Passwords do not match"); return; }
+
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)" as any);
-    } catch (e) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(e instanceof ApiError ? e.message : "Login failed. Please try again.");
+      const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, resetCode: code.trim(), newPassword }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong");
+        return;
+      }
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      router.replace("/(auth)/login" as any);
+    } catch {
+      setError("Unable to connect. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -58,10 +70,10 @@ export default function LoginScreen() {
         style={[styles.topSection, { paddingTop: insets.top + 40 }]}
       >
         <View style={styles.logoWrap}>
-          <Feather name="credit-card" size={32} color="#F0A500" />
+          <Feather name="shield" size={32} color="#F0A500" />
         </View>
-        <Text style={styles.appName}>CardTracker</Text>
-        <Text style={styles.appTagline}>Your credit cards, organised.</Text>
+        <Text style={styles.appName}>New Password</Text>
+        <Text style={styles.appTagline}>Enter your reset code and new password</Text>
       </LinearGradient>
 
       <ScrollView
@@ -70,10 +82,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Sign in to access your cards
-        </Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Set new password</Text>
+        {email ? (
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            Reset code for <Text style={{ fontFamily: "Inter_600SemiBold" }}>{email}</Text>
+          </Text>
+        ) : null}
 
         {error ? (
           <View style={[styles.errorBox, { backgroundColor: colors.dangerLight }]}>
@@ -82,18 +96,26 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
+        {prefillCode ? (
+          <View style={[styles.codeBox, { backgroundColor: "#F0A50015", borderColor: "#F0A50040" }]}>
+            <Feather name="info" size={14} color="#F0A500" />
+            <Text style={[styles.codeBoxText, { color: colors.foreground }]}>
+              Your reset code is: <Text style={styles.codeValue}>{prefillCode}</Text>
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.fields}>
           <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="mail" size={18} color={colors.mutedForeground} />
+            <Feather name="hash" size={18} color={colors.mutedForeground} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
-              placeholder="Email address"
+              placeholder="6-digit reset code"
               placeholderTextColor={colors.mutedForeground}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
+              value={code}
+              onChangeText={(v) => setCode(v.replace(/\D/g, "").slice(0, 6))}
+              keyboardType="number-pad"
+              maxLength={6}
             />
           </View>
 
@@ -101,49 +123,52 @@ export default function LoginScreen() {
             <Feather name="lock" size={18} color={colors.mutedForeground} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
-              placeholder="Password"
+              placeholder="New password"
               placeholderTextColor={colors.mutedForeground}
-              value={password}
-              onChangeText={setPassword}
+              value={newPassword}
+              onChangeText={setNewPassword}
               secureTextEntry={!showPw}
-              autoComplete="password"
             />
             <TouchableOpacity onPress={() => setShowPw(!showPw)}>
               <Feather name={showPw ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="check-circle" size={18} color={colors.mutedForeground} />
+            <TextInput
+              style={[styles.input, { color: colors.foreground }]}
+              placeholder="Confirm new password"
+              placeholderTextColor={colors.mutedForeground}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirm}
+            />
+            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+              <Feather name={showConfirm ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: loading ? colors.muted : "#1B2B5E" }]}
-          onPress={handleLogin}
+          onPress={handleReset}
           disabled={loading}
         >
           {loading ? (
-            <Text style={styles.btnText}>Signing in...</Text>
+            <Text style={styles.btnText}>Resetting...</Text>
           ) : (
             <>
-              <Text style={styles.btnText}>Sign In</Text>
-              <Feather name="arrow-right" size={18} color="#fff" />
+              <Text style={styles.btnText}>Reset Password</Text>
+              <Feather name="check" size={18} color="#fff" />
             </>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.forgotRow}
-          onPress={() => router.push("/(auth)/forgot-password" as any)}
-        >
-          <Text style={[styles.switchLink, { color: "#1B2B5E" }]}>Forgot password?</Text>
+        <TouchableOpacity style={styles.backRow} onPress={() => router.replace("/(auth)/login" as any)}>
+          <Feather name="arrow-left" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.backText, { color: colors.mutedForeground }]}>Back to Sign In</Text>
         </TouchableOpacity>
-
-        <View style={styles.switchRow}>
-          <Text style={[styles.switchText, { color: colors.mutedForeground }]}>
-            Don't have an account?
-          </Text>
-          <TouchableOpacity onPress={() => router.replace("/(auth)/signup" as any)}>
-            <Text style={[styles.switchLink, { color: "#1B2B5E" }]}> Sign up</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -190,6 +215,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   errorText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
+  codeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  codeBoxText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  codeValue: { fontFamily: "Inter_700Bold", fontSize: 15, letterSpacing: 2 },
   fields: { gap: 12 },
   inputWrap: {
     flexDirection: "row",
@@ -216,16 +251,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   btnText: { color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold" },
-  forgotRow: {
-    alignItems: "center",
-    marginTop: -4,
-  },
-  switchRow: {
+  backRow: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 4,
   },
-  switchText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  switchLink: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  backText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });

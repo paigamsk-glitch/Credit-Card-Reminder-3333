@@ -15,34 +15,43 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-export default function LoginScreen() {
+export default function ForgotPasswordScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
     setError("");
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password");
+    if (!email.trim()) {
+      setError("Please enter your email address");
       return;
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)" as any);
-    } catch (e) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(e instanceof ApiError ? e.message : "Login failed. Please try again.");
+      const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json() as { resetCode?: string; error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong");
+        return;
+      }
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      router.push({
+        pathname: "/(auth)/reset-password" as any,
+        params: { email: email.trim().toLowerCase(), code: data.resetCode ?? "" },
+      });
+    } catch {
+      setError("Unable to connect. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -58,10 +67,10 @@ export default function LoginScreen() {
         style={[styles.topSection, { paddingTop: insets.top + 40 }]}
       >
         <View style={styles.logoWrap}>
-          <Feather name="credit-card" size={32} color="#F0A500" />
+          <Feather name="key" size={32} color="#F0A500" />
         </View>
-        <Text style={styles.appName}>CardTracker</Text>
-        <Text style={styles.appTagline}>Your credit cards, organised.</Text>
+        <Text style={styles.appName}>Reset Password</Text>
+        <Text style={styles.appTagline}>We'll send you a reset code</Text>
       </LinearGradient>
 
       <ScrollView
@@ -70,9 +79,9 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Forgot password?</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Sign in to access your cards
+          Enter the email linked to your account and we'll generate a reset code.
         </Text>
 
         {error ? (
@@ -82,68 +91,40 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
-        <View style={styles.fields}>
-          <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="mail" size={18} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.input, { color: colors.foreground }]}
-              placeholder="Email address"
-              placeholderTextColor={colors.mutedForeground}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-          </View>
-
-          <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="lock" size={18} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.input, { color: colors.foreground }]}
-              placeholder="Password"
-              placeholderTextColor={colors.mutedForeground}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPw}
-              autoComplete="password"
-            />
-            <TouchableOpacity onPress={() => setShowPw(!showPw)}>
-              <Feather name={showPw ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
+        <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Feather name="mail" size={18} color={colors.mutedForeground} />
+          <TextInput
+            style={[styles.input, { color: colors.foreground }]}
+            placeholder="Email address"
+            placeholderTextColor={colors.mutedForeground}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoFocus
+          />
         </View>
 
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: loading ? colors.muted : "#1B2B5E" }]}
-          onPress={handleLogin}
+          onPress={handleSubmit}
           disabled={loading}
         >
           {loading ? (
-            <Text style={styles.btnText}>Signing in...</Text>
+            <Text style={styles.btnText}>Sending...</Text>
           ) : (
             <>
-              <Text style={styles.btnText}>Sign In</Text>
+              <Text style={styles.btnText}>Send Reset Code</Text>
               <Feather name="arrow-right" size={18} color="#fff" />
             </>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.forgotRow}
-          onPress={() => router.push("/(auth)/forgot-password" as any)}
-        >
-          <Text style={[styles.switchLink, { color: "#1B2B5E" }]}>Forgot password?</Text>
+        <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
+          <Feather name="arrow-left" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.backText, { color: colors.mutedForeground }]}>Back to Sign In</Text>
         </TouchableOpacity>
-
-        <View style={styles.switchRow}>
-          <Text style={[styles.switchText, { color: colors.mutedForeground }]}>
-            Don't have an account?
-          </Text>
-          <TouchableOpacity onPress={() => router.replace("/(auth)/signup" as any)}>
-            <Text style={[styles.switchLink, { color: "#1B2B5E" }]}> Sign up</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -181,7 +162,7 @@ const styles = StyleSheet.create({
   form: { flex: 1 },
   formContent: { padding: 24, gap: 16 },
   title: { fontSize: 24, fontFamily: "Inter_700Bold" },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginTop: -8 },
+  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginTop: -8, lineHeight: 20 },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -190,7 +171,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   errorText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
-  fields: { gap: 12 },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -216,16 +196,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   btnText: { color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold" },
-  forgotRow: {
-    alignItems: "center",
-    marginTop: -4,
-  },
-  switchRow: {
+  backRow: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 4,
   },
-  switchText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  switchLink: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  backText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });
