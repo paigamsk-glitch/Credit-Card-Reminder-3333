@@ -78,13 +78,6 @@ export default function AddCardScreen() {
       const month = parseInt(m ?? "", 10);
       if (!d || isNaN(day) || day < 1 || day > 31) return "Invalid day (1–31)";
       if (!m || isNaN(month) || month < 1 || month > 12) return "Invalid month (1–12)";
-    } else if (val.includes("-")) {
-      const [s, e] = val.split("-");
-      const start = parseInt(s ?? "", 10);
-      const end = parseInt(e ?? "", 10);
-      if (!s || isNaN(start) || start < 1 || start > 31) return "Invalid start day (1–31)";
-      if (!e || isNaN(end) || end < 1 || end > 31) return "Invalid end day (1–31)";
-      if (start >= end) return "Start day must be before end day";
     } else {
       const day = parseInt(val, 10);
       if (isNaN(day) || day < 1 || day > 31) return "Enter a valid day (1–31)";
@@ -172,7 +165,7 @@ export default function AddCardScreen() {
           </View>
         </View>
 
-        <Field label="Due Date" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/[^\d\/\-]/g, ""))} placeholder="e.g., 15  or  5/12  or  3-11" />
+        <Field label="Due Date" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/[^\d\/]/g, ""))} placeholder="e.g., 15  or  5/12" />
 
         <View style={styles.row}>
           <View style={{ flex: 1 }}>

@@ -22,12 +22,10 @@ export function isExpired(card: CardExpiry): boolean {
  * Supported due-date formats:
  *   "15"    — 15th of every month           (type: simple,   effectiveDay: 15)
  *   "5/12"  — 5th of December, annually     (type: specific, effectiveDay: 5, month: 12)
- *   "3-11"  — range 3rd–11th every month    (type: range,    effectiveDay: 11)
  */
 export interface ParsedDueDate {
-  type: "simple" | "specific" | "range";
+  type: "simple" | "specific";
   startDay: number;
-  endDay?: number;
   month?: number;
   effectiveDay: number;
 }
@@ -42,11 +40,11 @@ export function parseDueDate(dueDate: string): ParsedDueDate {
     return { type: "specific", startDay, month, effectiveDay: startDay };
   }
 
+  // Handle legacy range format gracefully — use start day as effective day
   if (str.includes("-")) {
-    const [startStr, endStr] = str.split("-");
+    const [startStr] = str.split("-");
     const startDay = parseInt(startStr ?? "1", 10) || 1;
-    const endDay = parseInt(endStr ?? "1", 10) || 1;
-    return { type: "range", startDay, endDay, effectiveDay: endDay };
+    return { type: "simple", startDay, effectiveDay: startDay };
   }
 
   const startDay = parseInt(str, 10) || 1;

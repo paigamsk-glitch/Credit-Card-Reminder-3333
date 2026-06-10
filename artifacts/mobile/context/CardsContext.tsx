@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { ApiError, apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import { parseDueDate } from "@/lib/cardUtils";
 import {
   cancelCardNotifications,
@@ -143,7 +143,7 @@ function normalizeCard(raw: Record<string, unknown>): CreditCard {
 const CardsContext = createContext<CardsContextValue | null>(null);
 
 export function CardsProvider({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,11 +158,15 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
       setCards(normalized);
       scheduleAllCardNotifications(normalized).catch(() => {});
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        await logout();
+        return;
+      }
       setError(e instanceof Error ? e.message : "Failed to load cards");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, logout]);
 
   useEffect(() => {
     refresh();

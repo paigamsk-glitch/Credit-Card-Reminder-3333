@@ -24,9 +24,6 @@ function dueDateLeftColumn(dueDate: string): { main: string; sub: string } {
   if (parsed.type === "specific" && parsed.month) {
     return { main: String(parsed.startDay), sub: MONTH_SHORT[parsed.month - 1] ?? "" };
   }
-  if (parsed.type === "range") {
-    return { main: `${parsed.startDay}-${parsed.endDay}`, sub: "range" };
-  }
   return { main: String(parsed.startDay), sub: "of month" };
 }
 
@@ -84,8 +81,8 @@ function ReminderCard({ card }: { card: CreditCard }) {
       }}
       activeOpacity={0.7}
     >
-      <View style={[styles.reminderLeft, { width: dueDateSub === "range" ? 52 : 36 }]}>
-        <Text style={[styles.reminderDueDay, { color: colors.primary, fontSize: dueDateSub === "range" ? 14 : 22 }]}>
+      <View style={styles.reminderLeft}>
+        <Text style={[styles.reminderDueDay, { color: colors.primary }]}>
           {dueDateMain}
         </Text>
         <Text style={[styles.reminderDueLabel, { color: colors.mutedForeground }]}>
