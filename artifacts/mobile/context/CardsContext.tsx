@@ -7,6 +7,7 @@ import {
   cancelCardNotifications,
   scheduleAllCardNotifications,
   scheduleCardNotifications,
+  scheduleNextCycleNotification,
 } from "@/lib/notifications";
 
 export type PaymentStatus = "Pending" | "Paid" | "Overdue";
@@ -224,6 +225,7 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
       const saved = normalizeCard(raw);
       setCards((prev) => prev.map((c) => (c.id === id ? saved : c)));
       cancelCardNotifications(id).catch(() => {});
+      scheduleNextCycleNotification(saved).catch(() => {});
     },
     [token, cards]
   );

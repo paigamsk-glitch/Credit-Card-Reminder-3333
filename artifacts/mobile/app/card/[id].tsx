@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -222,6 +223,36 @@ export default function CardDetailScreen() {
         </View>
       </View>
 
+      {/* Notifications Toggle */}
+      <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.detailSectionTitle, { color: colors.mutedForeground }]}>NOTIFICATIONS</Text>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleIcon}>
+            <Feather
+              name={card.isActive ? "bell" : "bell-off"}
+              size={20}
+              color={card.isActive ? "#1B2B5E" : colors.mutedForeground}
+            />
+          </View>
+          <View style={styles.toggleInfo}>
+            <Text style={[styles.toggleLabel, { color: colors.foreground }]}>
+              {card.isActive ? "Reminders enabled" : "Reminders paused"}
+            </Text>
+            <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>
+              {card.isActive
+                ? "You'll receive payment notifications for this card"
+                : "No reminders will be sent until re-enabled"}
+            </Text>
+          </View>
+          <Switch
+            value={card.isActive}
+            onValueChange={() => handleDeactivate()}
+            trackColor={{ false: colors.muted, true: "#1B2B5E" }}
+            thumbColor={card.isActive ? "#F0A500" : "#ccc"}
+          />
+        </View>
+      </View>
+
       {/* Card Details */}
       <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.detailSectionTitle, { color: colors.mutedForeground }]}>CARD DETAILS</Text>
@@ -332,4 +363,21 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   infoValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "right", flex: 1 },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  toggleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(27,43,94,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toggleInfo: { flex: 1, gap: 2 },
+  toggleLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  toggleSub: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 16 },
 });

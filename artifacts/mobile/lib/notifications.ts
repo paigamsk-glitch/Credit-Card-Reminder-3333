@@ -52,10 +52,42 @@ function getTargetDate(dueDay: number, offsetDays: number, hour: number): Date {
 export async function cancelCardNotifications(cardId: string): Promise<void> {
   if (Platform.OS === "web") return;
   await Promise.all(
-    ["first", "second", "due", "overdue", "expiry"].map((t) =>
+    ["first", "second", "due", "overdue", "expiry", "next-cycle"].map((t) =>
       Notifications.cancelScheduledNotificationAsync(`card-${cardId}-${t}`).catch(() => {})
     )
   );
+}
+
+export async function scheduleNextCycleNotification(card: NotificationCard): Promise<void> {
+  if (Platform.OS === "web") return;
+  if (!card.isActive) return;
+  const status = await getPermissionStatus();
+  if (status !== "granted") return;
+
+  const { effectiveDay } = parseDueDate(card.dueDate);
+  const cardLabel = `${card.cardName || card.bankName} (····${card.lastFourDigits})`;
+
+  const now = new Date();
+  const nextMonthDue = new Date(now.getFullYear(), now.getMonth() + 1, effectiveDay, 9, 0, 0);
+  const reminderDate = new Date(nextMonthDue.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+  if (reminderDate <= now) return;
+
+  try {
+    await Notifications.cancelScheduledNotificationAsync(`card-${card.id}-next-cycle`).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: `card-${card.id}-next-cycle`,
+      content: {
+        title: "💳 Next Payment Coming Up",
+        body: `${cardLabel} — next payment due in 5 days. Get ready!`,
+        data: { cardId: card.id, type: "next-cycle" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: reminderDate,
+      },
+    });
+  } catch {}
 }
 
 export async function scheduleCardNotifications(card: NotificationCard): Promise<void> {
