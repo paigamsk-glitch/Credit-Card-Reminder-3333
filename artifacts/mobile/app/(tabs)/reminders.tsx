@@ -15,7 +15,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import type { CreditCard } from "@/context/CardsContext";
 import { getDaysUntilDue, useCards } from "@/context/CardsContext";
+import { parseDueDate } from "@/lib/cardUtils";
 import { useColors } from "@/hooks/useColors";
+
+function dueDateLeftColumn(dueDate: string): { main: string; sub: string } {
+  const parsed = parseDueDate(dueDate);
+  const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (parsed.type === "specific" && parsed.month) {
+    return { main: String(parsed.startDay), sub: MONTH_SHORT[parsed.month - 1] ?? "" };
+  }
+  if (parsed.type === "range") {
+    return { main: `${parsed.startDay}-${parsed.endDay}`, sub: "range" };
+  }
+  return { main: String(parsed.startDay), sub: "of month" };
+}
 
 interface ReminderGroup {
   title: string;
@@ -52,6 +65,7 @@ function groupReminders(cards: CreditCard[]): ReminderGroup[] {
 function ReminderCard({ card }: { card: CreditCard }) {
   const colors = useColors();
   const days = getDaysUntilDue(card.dueDate);
+  const { main: dueDateMain, sub: dueDateSub } = dueDateLeftColumn(card.dueDate);
   const dayLabel =
     card.paymentStatus === "Overdue"
       ? `Overdue ${Math.abs(days)}d`
@@ -70,12 +84,12 @@ function ReminderCard({ card }: { card: CreditCard }) {
       }}
       activeOpacity={0.7}
     >
-      <View style={styles.reminderLeft}>
-        <Text style={[styles.reminderDueDay, { color: colors.primary }]}>
-          {card.dueDate}
+      <View style={[styles.reminderLeft, { width: dueDateSub === "range" ? 52 : 36 }]}>
+        <Text style={[styles.reminderDueDay, { color: colors.primary, fontSize: dueDateSub === "range" ? 14 : 22 }]}>
+          {dueDateMain}
         </Text>
         <Text style={[styles.reminderDueLabel, { color: colors.mutedForeground }]}>
-          of month
+          {dueDateSub}
         </Text>
       </View>
       <View style={styles.reminderMid}>

@@ -19,7 +19,7 @@ const BANK_COLORS: Record<string, string> = {
   SBI: "#1565C0",
   Axis: "#6B21A8",
   Kotak: "#C05621",
-  Citi: "#0E7490",
+  ONE: "#0D4F6B",
   AMEX: "#1A7340",
   YES: "#7B1FA2",
   RBL: "#C62828",

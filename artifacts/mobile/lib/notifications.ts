@@ -1,14 +1,14 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-import { isExpired, isExpiringSoon } from "@/lib/cardUtils";
+import { isExpired, isExpiringSoon, parseDueDate } from "@/lib/cardUtils";
 
 export interface NotificationCard {
   id: string;
   cardName: string;
   bankName: string;
   lastFourDigits: string;
-  dueDate: number;
+  dueDate: string;
   expiryMonth: number;
   expiryYear: number;
   isActive: boolean;
@@ -40,6 +40,7 @@ export async function getPermissionStatus(): Promise<"granted" | "denied" | "und
 }
 
 function getTargetDate(dueDay: number, offsetDays: number, hour: number): Date {
+  // dueDay is the effective calendar day (from parseDueDate)
   const now = new Date();
   const thisDueDate = new Date(now.getFullYear(), now.getMonth(), dueDay, hour, 0, 0);
   const target = new Date(thisDueDate.getTime() - offsetDays * 24 * 60 * 60 * 1000);
@@ -77,7 +78,7 @@ export async function scheduleCardNotifications(card: NotificationCard): Promise
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: getTargetDate(card.dueDate, 5, 9),
+        date: getTargetDate(parseDueDate(card.dueDate).effectiveDay, 5, 9),
       },
     });
 
@@ -90,7 +91,7 @@ export async function scheduleCardNotifications(card: NotificationCard): Promise
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: getTargetDate(card.dueDate, 1, 9),
+        date: getTargetDate(parseDueDate(card.dueDate).effectiveDay, 1, 9),
       },
     });
 
@@ -103,7 +104,7 @@ export async function scheduleCardNotifications(card: NotificationCard): Promise
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: getTargetDate(card.dueDate, 0, 9),
+        date: getTargetDate(parseDueDate(card.dueDate).effectiveDay, 0, 9),
       },
     });
 

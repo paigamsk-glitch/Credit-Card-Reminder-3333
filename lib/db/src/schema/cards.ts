@@ -13,7 +13,7 @@ export const creditCardsTable = pgTable("credit_cards", {
   cardName: text("card_name").notNull(),
   lastFourDigits: text("last_four_digits").notNull(),
   bankName: text("bank_name").notNull(),
-  dueDate: integer("due_date").notNull(),
+  dueDate: text("due_date").notNull(),
   paymentStatus: text("payment_status").notNull().default("Pending"),
   paidDate: text("paid_date"),
   expiryMonth: integer("expiry_month").notNull(),

@@ -47,7 +47,7 @@ router.post("/cards", async (req: AuthRequest, res) => {
         cardName,
         lastFourDigits,
         bankName,
-        dueDate: Number(dueDate),
+        dueDate,
         paymentStatus: paymentStatus ?? "Pending",
         paidDate: paidDate ?? null,
         expiryMonth: Number(expiryMonth),

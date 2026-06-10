@@ -70,13 +70,34 @@ export default function AddCardScreen() {
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
+  const validateDueDate = (val: string): string | null => {
+    if (!val.trim()) return "Due date is required";
+    if (val.includes("/")) {
+      const [d, m] = val.split("/");
+      const day = parseInt(d ?? "", 10);
+      const month = parseInt(m ?? "", 10);
+      if (!d || isNaN(day) || day < 1 || day > 31) return "Invalid day (1–31)";
+      if (!m || isNaN(month) || month < 1 || month > 12) return "Invalid month (1–12)";
+    } else if (val.includes("-")) {
+      const [s, e] = val.split("-");
+      const start = parseInt(s ?? "", 10);
+      const end = parseInt(e ?? "", 10);
+      if (!s || isNaN(start) || start < 1 || start > 31) return "Invalid start day (1–31)";
+      if (!e || isNaN(end) || end < 1 || end > 31) return "Invalid end day (1–31)";
+      if (start >= end) return "Start day must be before end day";
+    } else {
+      const day = parseInt(val, 10);
+      if (isNaN(day) || day < 1 || day > 31) return "Enter a valid day (1–31)";
+    }
+    return null;
+  };
+
   const validate = () => {
     if (!cardHolderName.trim()) return "Card holder name is required";
     if (!lastFourDigits.trim() || lastFourDigits.length !== 4) return "Enter the last 4 digits of the card";
     if (!bankName) return "Please select a bank";
-    const due = parseInt(dueDate);
-    if (!dueDate || isNaN(due) || due < 1 || due > 31) return "Enter a valid due date (1–31)";
-    // Expiry: if either field is filled, both must be valid
+    const dueDateErr = validateDueDate(dueDate);
+    if (dueDateErr) return dueDateErr;
     if (expiryMonth || expiryYear) {
       const mo = parseInt(expiryMonth);
       const yr = parseInt(expiryYear);
@@ -99,7 +120,7 @@ export default function AddCardScreen() {
       cardName: cardName.trim(),
       lastFourDigits: lastFourDigits.trim(),
       bankName,
-      dueDate: parseInt(dueDate),
+      dueDate,
       expiryMonth: expiryMonth ? parseInt(expiryMonth) : 0,
       expiryYear: expiryYear ? parseInt(expiryYear) : 0,
       phoneNumber: phoneNumber.trim(),
@@ -151,7 +172,7 @@ export default function AddCardScreen() {
           </View>
         </View>
 
-        <Field label="Due Date (day of month)" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/\D/g, ""))} placeholder="e.g., 15" keyboardType="numeric" maxLength={2} />
+        <Field label="Due Date" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/[^\d\/\-]/g, ""))} placeholder="e.g., 15  or  5/12  or  3-11" />
 
         <View style={styles.row}>
           <View style={{ flex: 1 }}>

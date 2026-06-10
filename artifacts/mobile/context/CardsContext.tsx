@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 
 import { useAuth } from "@/context/AuthContext";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { parseDueDate } from "@/lib/cardUtils";
 import {
   cancelCardNotifications,
   scheduleAllCardNotifications,
@@ -17,7 +18,7 @@ export interface CreditCard {
   cardName: string;
   lastFourDigits: string;
   bankName: string;
-  dueDate: number;
+  dueDate: string;
   paymentStatus: PaymentStatus;
   paidDate?: string | null;
   expiryMonth: number;
@@ -53,15 +54,21 @@ interface CardsContextValue {
   getCard: (id: string) => CreditCard | undefined;
 }
 
-export function getNextDueDate(dueDate: number): Date {
+export function getNextDueDate(dueDate: string): Date {
+  const parsed = parseDueDate(dueDate);
   const now = new Date();
-  if (now.getDate() > dueDate) {
-    return new Date(now.getFullYear(), now.getMonth() + 1, dueDate);
+  if (parsed.type === "specific" && parsed.month) {
+    const thisYear = now.getFullYear();
+    const target = new Date(thisYear, parsed.month - 1, parsed.startDay);
+    if (now > target) return new Date(thisYear + 1, parsed.month - 1, parsed.startDay);
+    return target;
   }
-  return new Date(now.getFullYear(), now.getMonth(), dueDate);
+  const day = parsed.effectiveDay;
+  if (now.getDate() > day) return new Date(now.getFullYear(), now.getMonth() + 1, day);
+  return new Date(now.getFullYear(), now.getMonth(), day);
 }
 
-export function getDaysUntilDue(dueDate: number): number {
+export function getDaysUntilDue(dueDate: string): number {
   const nextDue = getNextDueDate(dueDate);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -86,10 +93,16 @@ export function isExpired(card: CreditCard): boolean {
 
 export function computeStatus(card: CreditCard): PaymentStatus {
   if (card.paymentStatus === "Paid") return "Paid";
+  const parsed = parseDueDate(card.dueDate);
   const now = new Date();
-  const thisMonthDue = new Date(now.getFullYear(), now.getMonth(), card.dueDate);
-  thisMonthDue.setHours(23, 59, 59, 999);
-  if (now > thisMonthDue) return "Overdue";
+  let thisDue: Date;
+  if (parsed.type === "specific" && parsed.month) {
+    thisDue = new Date(now.getFullYear(), parsed.month - 1, parsed.startDay);
+  } else {
+    thisDue = new Date(now.getFullYear(), now.getMonth(), parsed.effectiveDay);
+  }
+  thisDue.setHours(23, 59, 59, 999);
+  if (now > thisDue) return "Overdue";
   return "Pending";
 }
 
@@ -113,7 +126,7 @@ function normalizeCard(raw: Record<string, unknown>): CreditCard {
     cardName: (raw.cardName ?? raw.card_name) as string,
     lastFourDigits: (raw.lastFourDigits ?? raw.last_four_digits) as string,
     bankName: (raw.bankName ?? raw.bank_name) as string,
-    dueDate: Number(raw.dueDate ?? raw.due_date),
+    dueDate: String(raw.dueDate ?? raw.due_date ?? ""),
     paymentStatus: ((raw.paymentStatus ?? raw.payment_status) as PaymentStatus) ?? "Pending",
     paidDate: (raw.paidDate ?? raw.paid_date) as string | null | undefined,
     expiryMonth: Number(raw.expiryMonth ?? raw.expiry_month),

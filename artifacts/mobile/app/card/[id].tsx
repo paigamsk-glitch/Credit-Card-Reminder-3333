@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardVisual } from "@/components/CardVisual";
 import { PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import { getDaysUntilDue, isExpired, isExpiringSoon, useCards } from "@/context/CardsContext";
+import { parseDueDate } from "@/lib/cardUtils";
 import { useColors } from "@/hooks/useColors";
 
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
@@ -126,7 +127,7 @@ export default function CardDetailScreen() {
         <View style={styles.statusItem}>
           <Text style={[styles.statusMeta, { color: colors.mutedForeground }]}>Due date</Text>
           <Text style={[styles.statusValue, { color: colors.foreground }]}>
-            {card.dueDate}th of month
+            {card.dueDate}
           </Text>
         </View>
         <View style={[styles.statusDivider, { backgroundColor: colors.border }]} />
@@ -240,8 +241,17 @@ export default function CardDetailScreen() {
       {/* Reminder Info */}
       <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.detailSectionTitle, { color: colors.mutedForeground }]}>REMINDER SCHEDULE</Text>
-        <InfoRow label="First reminder" value={`${card.dueDate - 5 < 1 ? card.dueDate - 5 + 31 : card.dueDate - 5}th (5 days before)`} />
-        <InfoRow label="Second reminder" value={`${card.dueDate - 1 < 1 ? card.dueDate - 1 + 31 : card.dueDate - 1}th (1 day before)`} />
+        {(() => {
+          const { effectiveDay } = parseDueDate(card.dueDate);
+          const d1 = effectiveDay - 5 < 1 ? effectiveDay - 5 + 31 : effectiveDay - 5;
+          const d2 = effectiveDay - 1 < 1 ? effectiveDay - 1 + 31 : effectiveDay - 1;
+          return (
+            <>
+              <InfoRow label="First reminder" value={`${d1}th (5 days before)`} />
+              <InfoRow label="Second reminder" value={`${d2}th (1 day before)`} />
+            </>
+          );
+        })()}
         <InfoRow label="Overdue alert" value="Day after due date" />
         <InfoRow label="Added on" value={createdFormatted} />
       </View>
