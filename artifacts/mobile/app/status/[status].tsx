@@ -1,11 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   FlatList,
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -45,6 +46,7 @@ export default function StatusCardsScreen() {
   const insets = useSafeAreaInsets();
   const { status } = useLocalSearchParams<{ status: string }>();
   const { activeCards } = useCards();
+  const [query, setQuery] = useState("");
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -52,7 +54,17 @@ export default function StatusCardsScreen() {
   const statusKey = status as "Paid" | "Pending" | "Overdue";
   const meta = STATUS_META[statusKey] ?? STATUS_META["Pending"];
 
-  const filteredCards = activeCards.filter((c) => c.paymentStatus === statusKey);
+  const statusCards = activeCards.filter((c) => c.paymentStatus === statusKey);
+  const q = query.trim().toLowerCase();
+  const filteredCards = q
+    ? statusCards.filter(
+        (c) =>
+          c.cardName.toLowerCase().includes(q) ||
+          c.cardHolderName.toLowerCase().includes(q) ||
+          c.bankName.toLowerCase().includes(q) ||
+          c.lastFourDigits.includes(q)
+      )
+    : statusCards;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -73,20 +85,39 @@ export default function StatusCardsScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{meta.label}</Text>
       </View>
 
-      {/* Count badge */}
-      <View style={[styles.countRow, { paddingHorizontal: 16 }]}>
-        <Text style={[styles.countNumber, { color: meta.color }]}>{filteredCards.length}</Text>
-        <Text style={[styles.countLabel, { color: colors.foreground }]}>
-          {" "}{filteredCards.length === 1 ? "Card" : "Cards"}
-        </Text>
+      {/* Count + Search */}
+      <View style={[styles.subHeader, { paddingHorizontal: 16 }]}>
+        <View style={styles.countRow}>
+          <Text style={[styles.countNumber, { color: meta.color }]}>{statusCards.length}</Text>
+          <Text style={[styles.countLabel, { color: colors.foreground }]}>
+            {" "}{statusCards.length === 1 ? "Card" : "Cards"}
+          </Text>
+        </View>
+        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Feather name="search" size={16} color={colors.mutedForeground} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.foreground }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by name, bank or digits…"
+            placeholderTextColor={colors.mutedForeground}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {filteredCards.length === 0 ? (
         <View style={styles.emptyWrap}>
           <EmptyState
-            icon={meta.icon as any}
-            title={meta.emptyTitle}
-            subtitle={meta.emptySubtitle}
+            icon={query ? "search" : (meta.icon as any)}
+            title={query ? "No cards match your search" : meta.emptyTitle}
+            subtitle={query ? "Try a different keyword" : meta.emptySubtitle}
           />
         </View>
       ) : (
@@ -96,6 +127,7 @@ export default function StatusCardsScreen() {
           renderItem={({ item }) => <CardListItem card={item} />}
           contentContainerStyle={[styles.list, { paddingBottom: bottomPad + 40 }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </View>
@@ -125,11 +157,14 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     flex: 1,
   },
+  subHeader: {
+    paddingTop: 14,
+    paddingBottom: 10,
+    gap: 10,
+  },
   countRow: {
     flexDirection: "row",
     alignItems: "baseline",
-    paddingTop: 16,
-    paddingBottom: 8,
   },
   countNumber: {
     fontSize: 32,
@@ -138,6 +173,21 @@ const styles = StyleSheet.create({
   countLabel: {
     fontSize: 18,
     fontFamily: "Inter_500Medium",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    padding: 0,
   },
   emptyWrap: { flex: 1 },
   list: { paddingHorizontal: 16, paddingTop: 8 },
