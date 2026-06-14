@@ -28,6 +28,7 @@ export interface CreditCard {
   isActive: boolean;
   createdAt?: string;
   notes?: string | null;
+  network?: string | null;
 }
 
 export interface CardStats {
@@ -51,6 +52,7 @@ interface CardsContextValue {
   deleteCard: (id: string) => Promise<void>;
   markAsPaid: (id: string) => Promise<void>;
   markAsPending: (id: string) => Promise<void>;
+  markAllAsPaid: () => Promise<void>;
   resetMonthlyStatuses: () => Promise<void>;
   getCard: (id: string) => CreditCard | undefined;
 }
@@ -136,6 +138,7 @@ function normalizeCard(raw: Record<string, unknown>): CreditCard {
     isActive: Boolean(raw.isActive ?? raw.is_active ?? true),
     createdAt: (raw.createdAt ?? raw.created_at) as string | undefined,
     notes: raw.notes as string | null | undefined,
+    network: raw.network as string | null | undefined,
   };
   card.paymentStatus = computeStatus(card);
   return card;
@@ -244,6 +247,27 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
     [token, cards]
   );
 
+  const markAllAsPaid = useCallback(async () => {
+    if (!token) return;
+    const unpaid = cards.filter((c) => c.isActive && c.paymentStatus !== "Paid");
+    if (unpaid.length === 0) return;
+    const now = new Date().toISOString();
+    const updatedAll = await Promise.all(
+      unpaid.map(async (c) => {
+        const updates = { paymentStatus: "Paid" as PaymentStatus, paidDate: now };
+        const raw = await apiPut<Record<string, unknown>>(`/cards/${c.id}`, { ...c, ...updates }, token);
+        return normalizeCard(raw);
+      })
+    );
+    setCards((prev) =>
+      prev.map((c) => updatedAll.find((u) => u.id === c.id) ?? c)
+    );
+    for (const c of updatedAll) {
+      cancelCardNotifications(c.id).catch(() => {});
+      scheduleNextCycleNotification(c).catch(() => {});
+    }
+  }, [token, cards]);
+
   const resetMonthlyStatuses = useCallback(async () => {
     if (!token) return;
     const updatedAll = await Promise.all(
@@ -276,6 +300,7 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
         deleteCard,
         markAsPaid,
         markAsPending,
+        markAllAsPaid,
         resetMonthlyStatuses,
         getCard,
       }}

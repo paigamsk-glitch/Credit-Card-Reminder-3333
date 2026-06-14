@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   RefreshControl,
   ScrollView,
@@ -38,8 +39,9 @@ function formatDate(d: Date) {
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { activeCards, stats, loading } = useCards();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const { activeCards, stats, loading, markAllAsPaid } = useCards();
+  const [refreshing, setRefreshing] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -55,10 +57,33 @@ export default function DashboardScreen() {
     ...urgentCards.filter((c) => c.paymentStatus !== "Overdue"),
   ].slice(0, 5);
 
+  const unpaidCount = activeCards.filter((c) => c.paymentStatus !== "Paid").length;
+
   const onRefresh = async () => {
     setRefreshing(true);
     await new Promise((r) => setTimeout(r, 600));
     setRefreshing(false);
+  };
+
+  const handleMarkAllPaid = () => {
+    if (unpaidCount === 0) return;
+    Alert.alert(
+      "Mark All as Paid",
+      `This will mark all ${unpaidCount} unpaid card${unpaidCount === 1 ? "" : "s"} as paid for this month. Continue?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Mark All Paid",
+          style: "default",
+          onPress: async () => {
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setMarkingAll(true);
+            await markAllAsPaid();
+            setMarkingAll(false);
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -145,6 +170,21 @@ export default function DashboardScreen() {
           />
         </View>
       </View>
+
+      {/* Mark All as Paid */}
+      {unpaidCount > 0 && (
+        <TouchableOpacity
+          style={[styles.markAllBtn, { backgroundColor: markingAll ? colors.muted : colors.success, opacity: markingAll ? 0.7 : 1 }]}
+          onPress={handleMarkAllPaid}
+          disabled={markingAll || loading}
+          activeOpacity={0.8}
+        >
+          <Feather name={markingAll ? "loader" : "check-square"} size={18} color="#fff" />
+          <Text style={styles.markAllText}>
+            {markingAll ? "Marking all paid…" : `Mark All as Paid (${unpaidCount} card${unpaidCount === 1 ? "" : "s"})`}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Expiry Alert */}
       {expiringCards.length > 0 && (
@@ -240,8 +280,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  statsGrid: { gap: 10, marginBottom: 16 },
+  statsGrid: { gap: 10, marginBottom: 14 },
   statsRow: { flexDirection: "row", gap: 10 },
+  markAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  markAllText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+  },
   alertBanner: {
     flexDirection: "row",
     alignItems: "center",

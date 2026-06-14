@@ -2,14 +2,21 @@ import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 
 import type { CreditCard } from "@/context/CardsContext";
-import { getCardNetwork } from "./CardVisual";
+
+// ─── Sprite sheet layout ──────────────────────────────────────────────────────
+// Both images are 1536×1024px, 3 columns wide.
+// cards1.png: 4 rows → Kotak(row0), AMEX(row1), YES(row2), RBL(row3)
+// cards2.png: 5 rows → HDFC(row0), ICICI(row1), SBI(row2), Axis(row3), IndusInd(row4)
+//
+// Each row has 3 network variants: col0=Visa, col1=RuPay, col2=Mastercard
+// AMEX rows: col0=Green, col1=Gold, col2=Silver (all 3 are AMEX variants)
 
 const CARDS1 = require("../assets/cards/cards1.png");
 const CARDS2 = require("../assets/cards/cards2.png");
 
-// Source image: 1536×1024 for both
-// cards1: 3 cols × 4 rows → cell = 512×256
-// cards2: 3 cols × 5 rows → cell = 512×204.8
+const IMAGE_W = 1536;
+const IMAGE_H = 1024;
+const TOTAL_COLS = 3;
 
 interface SpriteInfo {
   img: 1 | 2;
@@ -29,18 +36,18 @@ const SPRITE_MAP: Record<string, SpriteInfo> = {
   IndusInd: { img: 2, row: 4, totalRows: 5 },
 };
 
-const TOTAL_COLS = 3;
-const IMAGE_W = 1536;
-const IMAGE_H = 1024;
-
-function networkToCol(network: string, bankName: string, last4: string): number {
+function networkToCol(network: string, bankName: string): number {
   if (bankName === "AMEX") {
-    const sum = last4.split("").reduce((a, c) => a + (parseInt(c) || 0), 0);
-    return sum % 3;
+    // AMEX: col0=Green, col1=Gold, col2=Silver — use gold (col1) as default
+    return 1;
   }
   if (network === "visa") return 0;
   if (network === "rupay") return 1;
-  return 2;
+  return 2; // mastercard
+}
+
+export function hasSprite(bankName: string): boolean {
+  return bankName in SPRITE_MAP;
 }
 
 interface CardSpriteProps {
@@ -53,19 +60,14 @@ export function CardSprite({ card, displayWidth, borderRadius = 12 }: CardSprite
   const info = SPRITE_MAP[card.bankName];
   if (!info) return null;
 
-  const network = card.network ?? getCardNetwork(card.bankName, card.lastFourDigits);
-  const col = networkToCol(network, card.bankName, card.lastFourDigits);
+  const network = card.network ?? deriveNetwork(card.bankName, card.lastFourDigits);
+  const col = networkToCol(network, card.bankName);
 
-  // Scale the full image so that 1 column fills displayWidth
-  // renderW = displayWidth * totalCols
-  // renderH = renderW * (IMAGE_H / IMAGE_W)
+  // Scale: one column = displayWidth
   const renderW = displayWidth * TOTAL_COLS;
   const renderH = renderW * (IMAGE_H / IMAGE_W);
-
-  // Display height = one row of the scaled image
   const displayH = renderH / info.totalRows;
 
-  // Offset to show the correct cell
   const offsetX = -col * displayWidth;
   const offsetY = -info.row * displayH;
 
@@ -82,15 +84,17 @@ export function CardSprite({ card, displayWidth, borderRadius = 12 }: CardSprite
   );
 }
 
-export function hasSprite(bankName: string): boolean {
-  return bankName in SPRITE_MAP;
+function deriveNetwork(bankName: string, lastFour: string): string {
+  if (bankName === "AMEX") return "amex";
+  const sum = lastFour.split("").reduce((a, c) => a + (parseInt(c) || 0), 0);
+  const idx = sum % 3;
+  if (bankName === "SBI" || bankName === "ONE") {
+    return (["rupay", "visa", "mastercard"])[idx];
+  }
+  return (["visa", "mastercard", "rupay"])[idx];
 }
 
 const styles = StyleSheet.create({
-  container: {
-    overflow: "hidden",
-  },
-  image: {
-    position: "absolute",
-  },
+  container: { overflow: "hidden" },
+  image: { position: "absolute" },
 });

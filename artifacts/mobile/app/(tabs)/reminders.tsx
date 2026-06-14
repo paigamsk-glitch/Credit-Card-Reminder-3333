@@ -12,11 +12,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CardSprite, hasSprite } from "@/components/CardSprite";
+import { BANK_META, DEFAULT_META, NetworkLogo, resolveNetwork } from "@/components/CardVisual";
 import { PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import type { CreditCard } from "@/context/CardsContext";
 import { getDaysUntilDue, useCards } from "@/context/CardsContext";
-import { parseDueDate } from "@/lib/cardUtils";
 import { useColors } from "@/hooks/useColors";
+import { parseDueDate } from "@/lib/cardUtils";
 
 function dueDateLeftColumn(dueDate: string): { main: string; sub: string } {
   const parsed = parseDueDate(dueDate);
@@ -59,6 +61,40 @@ function groupReminders(cards: CreditCard[]): ReminderGroup[] {
   return groups;
 }
 
+// Small card thumbnail for reminder rows
+function ReminderThumbnail({ card }: { card: CreditCard }) {
+  const THUMB_W = 72;
+  if (hasSprite(card.bankName)) {
+    return <CardSprite card={card} displayWidth={THUMB_W} borderRadius={7} />;
+  }
+  // Gradient fallback mini card
+  const meta = BANK_META[card.bankName] ?? DEFAULT_META;
+  const network = resolveNetwork(card);
+  const { LinearGradient } = require("expo-linear-gradient");
+  const { View: V, Text: T, StyleSheet: SS } = require("react-native");
+  const s = SS.create({
+    wrap: { width: THUMB_W, borderRadius: 7, overflow: "hidden" },
+    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    digits: { color: "rgba(255,255,255,0.85)", fontSize: 7, fontFamily: "Inter_500Medium", letterSpacing: 0.8 },
+  });
+  return (
+    <LinearGradient
+      colors={meta.gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[s.wrap, { padding: 6, aspectRatio: 1.586 }]}
+    >
+      <V style={s.row}>
+        <T style={{ color: "#fff", fontSize: 7, fontFamily: "Inter_700Bold" }} numberOfLines={1}>
+          {card.bankName}
+        </T>
+        <NetworkLogo network={network} compact />
+      </V>
+      <T style={s.digits}>···· {card.lastFourDigits}</T>
+    </LinearGradient>
+  );
+}
+
 function ReminderCard({ card }: { card: CreditCard }) {
   const colors = useColors();
   const days = getDaysUntilDue(card.dueDate);
@@ -76,36 +112,47 @@ function ReminderCard({ card }: { card: CreditCard }) {
     <TouchableOpacity
       style={[styles.reminderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => {
-        Haptics.selectionAsync();
+        if (Platform.OS !== "web") Haptics.selectionAsync();
         router.push(`/card/${card.id}` as any);
       }}
       activeOpacity={0.7}
     >
-      <View style={styles.reminderLeft}>
-        <Text style={[styles.reminderDueDay, { color: colors.primary }]}>
-          {dueDateMain}
-        </Text>
-        <Text style={[styles.reminderDueLabel, { color: colors.mutedForeground }]}>
-          {dueDateSub}
-        </Text>
+      {/* Card thumbnail */}
+      <View style={styles.thumbWrap}>
+        <ReminderThumbnail card={card} />
       </View>
+
+      {/* Due date column */}
+      <View style={styles.reminderLeft}>
+        <Text style={[styles.reminderDueDay, { color: colors.primary }]}>{dueDateMain}</Text>
+        <Text style={[styles.reminderDueLabel, { color: colors.mutedForeground }]}>{dueDateSub}</Text>
+      </View>
+
+      {/* Info */}
       <View style={styles.reminderMid}>
         <Text style={[styles.reminderCardName, { color: colors.foreground }]} numberOfLines={1}>
-          {card.cardName}
+          {card.cardName || card.bankName}
         </Text>
         <Text style={[styles.reminderHolder, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {card.bankName} · {card.cardHolderName} · ···{card.lastFourDigits}
+          {card.cardHolderName} · ···{card.lastFourDigits}
         </Text>
-        <Text style={[styles.reminderDayLabel, {
-          color: card.paymentStatus === "Overdue"
-            ? colors.destructive
-            : days <= 1
-            ? colors.warning
-            : colors.mutedForeground
-        }]}>
+        <Text
+          style={[
+            styles.reminderDayLabel,
+            {
+              color:
+                card.paymentStatus === "Overdue"
+                  ? colors.destructive
+                  : days <= 1
+                  ? colors.warning
+                  : colors.mutedForeground,
+            },
+          ]}
+        >
           {dayLabel}
         </Text>
       </View>
+
       <PaymentStatusBadge status={card.paymentStatus} />
     </TouchableOpacity>
   );
@@ -136,9 +183,7 @@ export default function RemindersScreen() {
         <View style={styles.allPaidWrap}>
           <View style={[styles.allPaidBubble, { backgroundColor: colors.successLight }]}>
             <Feather name="check-circle" size={40} color={colors.success} />
-            <Text style={[styles.allPaidTitle, { color: colors.success }]}>
-              All paid!
-            </Text>
+            <Text style={[styles.allPaidTitle, { color: colors.success }]}>All paid!</Text>
             <Text style={[styles.allPaidSub, { color: colors.success }]}>
               Every card for this month is cleared.
             </Text>
@@ -148,9 +193,7 @@ export default function RemindersScreen() {
         <View style={styles.allPaidWrap}>
           <View style={[styles.allPaidBubble, { backgroundColor: colors.muted }]}>
             <Feather name="bell-off" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.allPaidTitle, { color: colors.foreground }]}>
-              No reminders
-            </Text>
+            <Text style={[styles.allPaidTitle, { color: colors.foreground }]}>No reminders</Text>
             <Text style={[styles.allPaidSub, { color: colors.mutedForeground }]}>
               Add cards to track payment due dates
             </Text>
@@ -164,7 +207,15 @@ export default function RemindersScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={({ item: group }) => (
             <View style={styles.group}>
-              <View style={[styles.groupHeader, group.urgent && { backgroundColor: group.title === "Overdue" ? colors.dangerLight : colors.warningLight }]}>
+              <View
+                style={[
+                  styles.groupHeader,
+                  group.urgent && {
+                    backgroundColor:
+                      group.title === "Overdue" ? colors.dangerLight : colors.warningLight,
+                  },
+                ]}
+              >
                 {group.urgent && (
                   <Feather
                     name="alert-circle"
@@ -227,19 +278,28 @@ const styles = StyleSheet.create({
   reminderCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 14,
+    gap: 10,
+    padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: 8,
   },
-  reminderLeft: { alignItems: "center", width: 36 },
-  reminderDueDay: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  thumbWrap: {
+    borderRadius: 7,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  reminderLeft: { alignItems: "center", width: 34 },
+  reminderDueDay: { fontSize: 20, fontFamily: "Inter_700Bold" },
   reminderDueLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
   reminderMid: { flex: 1, gap: 2 },
-  reminderCardName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  reminderHolder: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  reminderDayLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2 },
+  reminderCardName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  reminderHolder: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  reminderDayLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 1 },
   allPaidWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   allPaidBubble: { borderRadius: 24, padding: 32, alignItems: "center", gap: 12, width: "100%" },
   allPaidTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },

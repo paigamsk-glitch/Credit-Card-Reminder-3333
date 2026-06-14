@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import type { CreditCard } from "@/context/CardsContext";
+import { CardSprite, hasSprite } from "./CardSprite";
 
-// ─── Bank config ────────────────────────────────────────────────────────────
+// ─── Bank config ─────────────────────────────────────────────────────────────
 export const BANK_META: Record<string, { gradient: readonly [string, string, string]; logo: string }> = {
   HDFC:     { gradient: ["#0A3D91", "#1565C0", "#0A3D91"], logo: "https://logo.clearbit.com/hdfcbank.com" },
   ICICI:    { gradient: ["#9B1C1C", "#C62828", "#9B1C1C"], logo: "https://logo.clearbit.com/icicibank.com" },
@@ -24,7 +25,7 @@ export const DEFAULT_META = {
   logo: null as string | null,
 };
 
-// ─── Network detection (deterministic from last-4 digits) ───────────────────
+// ─── Network detection ───────────────────────────────────────────────────────
 export function getCardNetwork(
   bankName: string,
   lastFourDigits: string
@@ -40,7 +41,12 @@ export function getCardNetwork(
   return (["visa", "mastercard", "rupay"] as const)[index];
 }
 
-// ─── Card network logo ───────────────────────────────────────────────────────
+export function resolveNetwork(card: CreditCard): "visa" | "mastercard" | "rupay" | "amex" {
+  if (card.network) return card.network as "visa" | "mastercard" | "rupay" | "amex";
+  return getCardNetwork(card.bankName, card.lastFourDigits);
+}
+
+// ─── Network logo ─────────────────────────────────────────────────────────────
 export function NetworkLogo({
   network,
   compact = false,
@@ -98,7 +104,7 @@ const nStyles = StyleSheet.create({
   amexText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 1 },
 });
 
-// ─── Chip ────────────────────────────────────────────────────────────────────
+// ─── Chip ─────────────────────────────────────────────────────────────────────
 function Chip({ compact = false }: { compact?: boolean }) {
   const w = compact ? 28 : 42;
   const h = compact ? 20 : 30;
@@ -125,30 +131,12 @@ const chipStyles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#9A7A00",
   },
-  lineH: {
-    position: "absolute",
-    height: 0.5,
-    backgroundColor: "#9A7A00",
-    opacity: 0.6,
-  },
-  lineV: {
-    position: "absolute",
-    width: 0.5,
-    backgroundColor: "#9A7A00",
-    opacity: 0.6,
-  },
+  lineH: { position: "absolute", height: 0.5, backgroundColor: "#9A7A00", opacity: 0.6 },
+  lineV: { position: "absolute", width: 0.5, backgroundColor: "#9A7A00", opacity: 0.6 },
 });
 
-// ─── Bank logo with text fallback ────────────────────────────────────────────
-function BankLogo({
-  bankName,
-  logoUrl,
-  compact,
-}: {
-  bankName: string;
-  logoUrl: string | null;
-  compact: boolean;
-}) {
+// ─── Bank logo with fallback ──────────────────────────────────────────────────
+function BankLogo({ bankName, logoUrl, compact }: { bankName: string; logoUrl: string | null; compact: boolean }) {
   const [failed, setFailed] = useState(false);
   const size = compact ? 22 : 32;
 
@@ -188,22 +176,13 @@ const bStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fallbackText: {
-    color: "#fff",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.3,
-  },
+  fallbackText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
 });
 
-// ─── Main CardVisual ─────────────────────────────────────────────────────────
-interface CardVisualProps {
-  card: CreditCard;
-  compact?: boolean;
-}
-
-export function CardVisual({ card, compact = false }: CardVisualProps) {
+// ─── Gradient fallback card (when no sprite) ──────────────────────────────────
+function GradientCard({ card, compact }: { card: CreditCard; compact: boolean }) {
   const meta = BANK_META[card.bankName] ?? DEFAULT_META;
-  const network = getCardNetwork(card.bankName, card.lastFourDigits);
+  const network = resolveNetwork(card);
 
   const expiryStr =
     card.expiryMonth && card.expiryYear
@@ -218,15 +197,12 @@ export function CardVisual({ card, compact = false }: CardVisualProps) {
         end={{ x: 1, y: 1 }}
         style={styles.compact}
       >
-        {/* Decorative circle */}
         <View style={styles.compactCircle1} />
         <View style={styles.compactCircle2} />
-
         <View style={styles.compactTop}>
-          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact={true} />
-          <NetworkLogo network={network} compact={true} />
+          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact />
+          <NetworkLogo network={network} compact />
         </View>
-
         <View style={styles.compactBottom}>
           <Chip compact />
           <Text style={styles.compactDigits}>···· {card.lastFourDigits}</Text>
@@ -242,43 +218,26 @@ export function CardVisual({ card, compact = false }: CardVisualProps) {
       end={{ x: 1, y: 1 }}
       style={styles.card}
     >
-      {/* Decorative circles */}
       <View style={styles.circle1} />
       <View style={styles.circle2} />
-
-      {/* Top row: bank logo + contactless */}
       <View style={styles.topRow}>
         <View style={styles.logoGroup}>
           <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact={false} />
           <View style={styles.bankTextGroup}>
             <Text style={styles.bankNameText}>{card.bankName}</Text>
             {card.cardName ? (
-              <Text style={styles.cardNameText} numberOfLines={1}>
-                {card.cardName}
-              </Text>
+              <Text style={styles.cardNameText} numberOfLines={1}>{card.cardName}</Text>
             ) : null}
           </View>
         </View>
         <Feather name="wifi" size={22} color="rgba(255,255,255,0.75)" style={{ transform: [{ rotate: "90deg" }] }} />
       </View>
-
-      {/* Chip row */}
-      <View style={styles.chipRow}>
-        <Chip />
-      </View>
-
-      {/* Card number */}
-      <Text style={styles.cardNumber}>
-        ●●●●  ●●●●  ●●●●  {card.lastFourDigits}
-      </Text>
-
-      {/* Bottom row */}
+      <View style={styles.chipRow}><Chip /></View>
+      <Text style={styles.cardNumber}>●●●●  ●●●●  ●●●●  {card.lastFourDigits}</Text>
       <View style={styles.bottomRow}>
         <View style={styles.holderGroup}>
           <Text style={styles.fieldLabel}>CARD HOLDER</Text>
-          <Text style={styles.holderName} numberOfLines={1}>
-            {card.cardHolderName.toUpperCase()}
-          </Text>
+          <Text style={styles.holderName} numberOfLines={1}>{card.cardHolderName.toUpperCase()}</Text>
         </View>
         <View style={styles.expiryGroup}>
           <Text style={styles.fieldLabel}>EXPIRES</Text>
@@ -290,8 +249,40 @@ export function CardVisual({ card, compact = false }: CardVisualProps) {
   );
 }
 
+// ─── Main CardVisual ──────────────────────────────────────────────────────────
+interface CardVisualProps {
+  card: CreditCard;
+  compact?: boolean;
+  width?: number;
+}
+
+export function CardVisual({ card, compact = false, width }: CardVisualProps) {
+  if (hasSprite(card.bankName)) {
+    if (compact) {
+      const w = width ?? 80;
+      return <CardSprite card={card} displayWidth={w} borderRadius={8} />;
+    }
+    return (
+      <View style={styles.spriteFullWrap}>
+        <CardSprite card={card} displayWidth={width ?? 340} borderRadius={18} />
+      </View>
+    );
+  }
+
+  return <GradientCard card={card} compact={compact} />;
+}
+
 const styles = StyleSheet.create({
-  // Full card
+  spriteFullWrap: {
+    width: "100%",
+    borderRadius: 18,
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
   card: {
     width: "100%",
     aspectRatio: 1.586,
@@ -306,123 +297,39 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   circle1: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    top: -80,
-    right: -60,
+    position: "absolute", width: 220, height: 220, borderRadius: 110,
+    backgroundColor: "rgba(255,255,255,0.06)", top: -80, right: -60,
   },
   circle2: {
-    position: "absolute",
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    bottom: -50,
-    left: -30,
+    position: "absolute", width: 160, height: 160, borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.04)", bottom: -50, left: -30,
   },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  logoGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  logoGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
   bankTextGroup: { gap: 1 },
-  bankNameText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.5,
-  },
-  cardNameText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    maxWidth: 150,
-  },
-  chipRow: {
-    marginTop: -6,
-  },
-  cardNumber: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 17,
-    letterSpacing: 3,
-    fontFamily: "Inter_500Medium",
-  },
-  bottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
+  bankNameText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  cardNameText: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontFamily: "Inter_400Regular", maxWidth: 150 },
+  chipRow: { marginTop: -6 },
+  cardNumber: { color: "rgba(255,255,255,0.92)", fontSize: 17, letterSpacing: 3, fontFamily: "Inter_500Medium" },
+  bottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   holderGroup: { flex: 1, gap: 3 },
   expiryGroup: { marginRight: 14, gap: 3 },
-  fieldLabel: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 8,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1.5,
-  },
-  holderName: {
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.5,
-    maxWidth: 160,
-  },
-  expiryText: {
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.5,
-  },
-
-  // Compact card (for list thumbnails)
+  fieldLabel: { color: "rgba(255,255,255,0.55)", fontSize: 8, fontFamily: "Inter_600SemiBold", letterSpacing: 1.5 },
+  holderName: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, maxWidth: 160 },
+  expiryText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
   compact: {
-    width: 80,
-    height: 52,
-    borderRadius: 8,
-    padding: 7,
-    justifyContent: "space-between",
-    overflow: "hidden",
+    width: 80, height: 52, borderRadius: 8, padding: 7,
+    justifyContent: "space-between", overflow: "hidden",
   },
   compactCircle1: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    top: -20,
-    right: -15,
+    position: "absolute", width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.08)", top: -20, right: -15,
   },
   compactCircle2: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    bottom: -15,
-    left: -10,
+    position: "absolute", width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)", bottom: -15, left: -10,
   },
-  compactTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  compactBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  compactDigits: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 8,
-    fontFamily: "Inter_500Medium",
-    letterSpacing: 1,
-  },
+  compactTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  compactBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+  compactDigits: { color: "rgba(255,255,255,0.85)", fontSize: 8, fontFamily: "Inter_500Medium", letterSpacing: 1 },
 });
