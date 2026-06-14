@@ -62,10 +62,17 @@ export default function EditCardScreen() {
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
+  const isKnownBank = (name: string) => BANKS.slice(0, -1).includes(name);
+
   const [cardHolderName, setCardHolderName] = useState(card?.cardHolderName ?? "");
   const [cardName, setCardName] = useState(card?.cardName ?? "");
   const [lastFourDigits, setLastFourDigits] = useState(card?.lastFourDigits ?? "");
-  const [bankName, setBankName] = useState(card?.bankName ?? "");
+  const [selectedBank, setSelectedBank] = useState(
+    card ? (isKnownBank(card.bankName) ? card.bankName : "Other") : ""
+  );
+  const [customBankName, setCustomBankName] = useState(
+    card && !isKnownBank(card.bankName) ? card.bankName : ""
+  );
   const [dueDate, setDueDate] = useState(card?.dueDate ?? "");
   const [expiryMonth, setExpiryMonth] = useState(card?.expiryMonth && card.expiryMonth > 0 ? card.expiryMonth.toString() : "");
   const [expiryYear, setExpiryYear] = useState(card?.expiryYear && card.expiryYear > 0 ? card.expiryYear.toString() : "");
@@ -79,6 +86,8 @@ export default function EditCardScreen() {
       </View>
     );
   }
+
+  const actualBankName = selectedBank === "Other" ? customBankName.trim() : selectedBank;
 
   const validateDueDate = (val: string): string | null => {
     if (!val.trim()) return "Due date is required";
@@ -98,7 +107,8 @@ export default function EditCardScreen() {
   const validate = () => {
     if (!cardHolderName.trim()) return "Card holder name is required";
     if (!lastFourDigits.trim() || lastFourDigits.length !== 4) return "Enter the last 4 digits of the card";
-    if (!bankName) return "Please select a bank";
+    if (!selectedBank) return "Please select a bank";
+    if (selectedBank === "Other" && !customBankName.trim()) return "Please enter the bank name";
     const dueDateErr = validateDueDate(dueDate);
     if (dueDateErr) return dueDateErr;
     if (expiryMonth || expiryYear) {
@@ -122,7 +132,7 @@ export default function EditCardScreen() {
       cardHolderName: cardHolderName.trim(),
       cardName: cardName.trim(),
       lastFourDigits: lastFourDigits.trim(),
-      bankName,
+      bankName: actualBankName,
       dueDate,
       expiryMonth: expiryMonth ? parseInt(expiryMonth) : 0,
       expiryYear: expiryYear ? parseInt(expiryYear) : 0,
@@ -147,6 +157,7 @@ export default function EditCardScreen() {
         <Field label="Card Name / Type" value={cardName} onChangeText={setCardName} placeholder="e.g., Millennia Credit Card" optional />
         <Field label="Last 4 Digits" value={lastFourDigits} onChangeText={(v) => setLastFourDigits(v.replace(/\D/g, ""))} placeholder="4521" keyboardType="numeric" maxLength={4} />
 
+        {/* Bank Selector */}
         <View style={styles.fieldWrap}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Bank Name</Text>
           <View style={styles.bankGrid}>
@@ -156,21 +167,36 @@ export default function EditCardScreen() {
                 style={[
                   styles.bankChip,
                   {
-                    backgroundColor: bankName === b ? colors.primary : colors.card,
-                    borderColor: bankName === b ? colors.primary : colors.border,
+                    backgroundColor: selectedBank === b ? colors.primary : colors.card,
+                    borderColor: selectedBank === b ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => {
-                  Haptics.selectionAsync();
-                  setBankName(b);
+                  if (Platform.OS !== "web") Haptics.selectionAsync();
+                  setSelectedBank(b);
+                  if (b !== "Other") setCustomBankName("");
                 }}
               >
-                <Text style={[styles.bankChipText, { color: bankName === b ? "#fff" : colors.foreground }]}>
+                <Text style={[styles.bankChipText, { color: selectedBank === b ? "#fff" : colors.foreground }]}>
                   {b}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+          {selectedBank === "Other" && (
+            <TextInput
+              style={[
+                styles.fieldInput,
+                styles.customBankInput,
+                { backgroundColor: colors.card, borderColor: colors.primary, color: colors.foreground },
+              ]}
+              value={customBankName}
+              onChangeText={setCustomBankName}
+              placeholder="Type bank name…"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+            />
+          )}
         </View>
 
         <Field label="Due Date" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/[^\d\/]/g, ""))} placeholder="e.g., 15  or  5/12" />
@@ -217,6 +243,10 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontFamily: "Inter_400Regular",
+  },
+  customBankInput: {
+    marginTop: 10,
+    borderWidth: 2,
   },
   bankGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   bankChip: {

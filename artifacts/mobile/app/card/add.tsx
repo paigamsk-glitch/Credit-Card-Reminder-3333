@@ -61,7 +61,8 @@ export default function AddCardScreen() {
   const [cardHolderName, setCardHolderName] = useState("");
   const [cardName, setCardName] = useState("");
   const [lastFourDigits, setLastFourDigits] = useState("");
-  const [bankName, setBankName] = useState("");
+  const [selectedBank, setSelectedBank] = useState("");
+  const [customBankName, setCustomBankName] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [expiryMonth, setExpiryMonth] = useState("");
   const [expiryYear, setExpiryYear] = useState("");
@@ -69,6 +70,8 @@ export default function AddCardScreen() {
   const [notes, setNotes] = useState("");
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const actualBankName = selectedBank === "Other" ? customBankName.trim() : selectedBank;
 
   const validateDueDate = (val: string): string | null => {
     if (!val.trim()) return "Due date is required";
@@ -88,7 +91,8 @@ export default function AddCardScreen() {
   const validate = () => {
     if (!cardHolderName.trim()) return "Card holder name is required";
     if (!lastFourDigits.trim() || lastFourDigits.length !== 4) return "Enter the last 4 digits of the card";
-    if (!bankName) return "Please select a bank";
+    if (!selectedBank) return "Please select a bank";
+    if (selectedBank === "Other" && !customBankName.trim()) return "Please enter the bank name";
     const dueDateErr = validateDueDate(dueDate);
     if (dueDateErr) return dueDateErr;
     if (expiryMonth || expiryYear) {
@@ -112,7 +116,7 @@ export default function AddCardScreen() {
       cardHolderName: cardHolderName.trim(),
       cardName: cardName.trim(),
       lastFourDigits: lastFourDigits.trim(),
-      bankName,
+      bankName: actualBankName,
       dueDate,
       expiryMonth: expiryMonth ? parseInt(expiryMonth) : 0,
       expiryYear: expiryYear ? parseInt(expiryYear) : 0,
@@ -148,21 +152,37 @@ export default function AddCardScreen() {
                 style={[
                   styles.bankChip,
                   {
-                    backgroundColor: bankName === b ? colors.primary : colors.card,
-                    borderColor: bankName === b ? colors.primary : colors.border,
+                    backgroundColor: selectedBank === b ? colors.primary : colors.card,
+                    borderColor: selectedBank === b ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => {
-                  Haptics.selectionAsync();
-                  setBankName(b);
+                  if (Platform.OS !== "web") Haptics.selectionAsync();
+                  setSelectedBank(b);
+                  if (b !== "Other") setCustomBankName("");
                 }}
               >
-                <Text style={[styles.bankChipText, { color: bankName === b ? "#fff" : colors.foreground }]}>
+                <Text style={[styles.bankChipText, { color: selectedBank === b ? "#fff" : colors.foreground }]}>
                   {b}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+          {selectedBank === "Other" && (
+            <TextInput
+              style={[
+                styles.fieldInput,
+                styles.customBankInput,
+                { backgroundColor: colors.card, borderColor: colors.primary, color: colors.foreground },
+              ]}
+              value={customBankName}
+              onChangeText={setCustomBankName}
+              placeholder="Type bank name…"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+              autoFocus
+            />
+          )}
         </View>
 
         <Field label="Due Date" value={dueDate} onChangeText={(v) => setDueDate(v.replace(/[^\d\/]/g, ""))} placeholder="e.g., 15  or  5/12" />
@@ -209,6 +229,10 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontFamily: "Inter_400Regular",
+  },
+  customBankInput: {
+    marginTop: 10,
+    borderWidth: 2,
   },
   bankGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   bankChip: {

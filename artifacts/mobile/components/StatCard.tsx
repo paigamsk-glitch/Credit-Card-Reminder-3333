@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
@@ -8,18 +8,24 @@ interface StatCardProps {
   value: number | string;
   color: string;
   lightColor: string;
+  onPress?: () => void;
 }
 
-export function StatCard({ label, value, color, lightColor }: StatCardProps) {
+export function StatCard({ label, value, color, lightColor, onPress }: StatCardProps) {
   const colors = useColors();
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.card, borderColor: onPress ? color : colors.border }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+    >
       <View style={[styles.dot, { backgroundColor: lightColor }]}>
         <View style={[styles.innerDot, { backgroundColor: color }]} />
       </View>
       <Text style={[styles.value, { color }]}>{value}</Text>
       <Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 

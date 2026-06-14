@@ -106,12 +106,20 @@ export default function DashboardScreen() {
             value={stats.total}
             color={colors.primary}
             lightColor={colors.secondary}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/overview" as any);
+            }}
           />
           <StatCard
             label="Paid"
             value={stats.paid}
             color={colors.success}
             lightColor={colors.successLight}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/status/Paid" as any);
+            }}
           />
         </View>
         <View style={styles.statsRow}>
@@ -120,12 +128,20 @@ export default function DashboardScreen() {
             value={stats.pending}
             color={colors.warning}
             lightColor={colors.warningLight}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/status/Pending" as any);
+            }}
           />
           <StatCard
             label="Overdue"
             value={stats.overdue}
             color={colors.destructive}
             lightColor={colors.dangerLight}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/status/Overdue" as any);
+            }}
           />
         </View>
       </View>
