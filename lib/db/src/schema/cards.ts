@@ -21,6 +21,7 @@ export const creditCardsTable = pgTable("credit_cards", {
   phoneNumber: text("phone_number"),
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
+  network: text("network"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
