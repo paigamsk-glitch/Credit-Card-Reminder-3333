@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,27 +13,61 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BANK_META, DEFAULT_META } from "@/components/CardVisual";
 import { useCards } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
 
-const BANK_COLORS: Record<string, string> = {
-  HDFC: "#0058A2",
-  ICICI: "#B22222",
-  SBI: "#1565C0",
-  Axis: "#6B21A8",
-  Kotak: "#C05621",
-  ONE: "#0D4F6B",
-  AMEX: "#1A7340",
-  YES: "#7B1FA2",
-  RBL: "#C62828",
-  IndusInd: "#00695C",
-};
-
 function getBankColor(bank: string, idx: number): string {
-  if (BANK_COLORS[bank]) return BANK_COLORS[bank];
+  const meta = BANK_META[bank];
+  if (meta) return meta.gradient[1];
   const palette = ["#2563EB", "#D97706", "#059669", "#DC2626", "#7C3AED", "#0891B2"];
   return palette[idx % palette.length];
 }
+
+function BankRowLogo({ bankName, color }: { bankName: string; color: string }) {
+  const [failed, setFailed] = useState(false);
+  const logoUrl = BANK_META[bankName]?.logo ?? null;
+
+  if (!logoUrl || failed) {
+    return (
+      <View style={[overStyles.logoFallback, { backgroundColor: color + "22" }]}>
+        <Text style={[overStyles.logoFallbackText, { color }]}>
+          {bankName.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={[overStyles.logoWrap, { backgroundColor: color + "18" }]}>
+      <Image
+        source={{ uri: logoUrl }}
+        style={overStyles.logoImg}
+        resizeMode="contain"
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
+}
+
+const overStyles = StyleSheet.create({
+  logoWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  logoImg: { width: 30, height: 30, borderRadius: 6 },
+  logoFallback: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoFallbackText: { fontSize: 18, fontFamily: "Inter_700Bold" },
+});
 
 interface BarData {
   label: string;
@@ -164,11 +199,7 @@ export default function OverviewScreen() {
               }}
               activeOpacity={0.7}
             >
-              <View style={[styles.bankIcon, { backgroundColor: bank.color + "22" }]}>
-                <Text style={[styles.bankInitial, { color: bank.color }]}>
-                  {bank.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              <BankRowLogo bankName={bank.name} color={bank.color} />
               <View style={styles.bankInfo}>
                 <Text style={[styles.bankName, { color: colors.foreground }]}>{bank.name}</Text>
                 <Text style={[styles.bankCount, { color: colors.mutedForeground }]}>

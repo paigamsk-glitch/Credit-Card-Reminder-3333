@@ -2,36 +2,26 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { CreditCard } from "@/context/CardsContext";
 import { getDaysUntilDue, isExpired, isExpiringSoon } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
+import { CardVisual, BANK_META, DEFAULT_META } from "./CardVisual";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 
 interface CardListItemProps {
   card: CreditCard;
 }
 
-const BANK_COLORS: Record<string, string> = {
-  HDFC: "#0058A2",
-  ICICI: "#B22222",
-  SBI: "#1565C0",
-  Axis: "#6B21A8",
-  Kotak: "#C05621",
-  ONE: "#0D4F6B",
-  AMEX: "#1A7340",
-  YES: "#7B1FA2",
-  RBL: "#C62828",
-  IndusInd: "#00695C",
-};
-
 export function CardListItem({ card }: CardListItemProps) {
   const colors = useColors();
   const daysUntil = getDaysUntilDue(card.dueDate);
   const expiring = isExpiringSoon(card);
   const expired = isExpired(card);
-  const bankColor = BANK_COLORS[card.bankName] ?? colors.primary;
+
+  const meta = BANK_META[card.bankName] ?? DEFAULT_META;
+  const accentColor = meta.gradient[1];
 
   const dueLabel =
     card.paymentStatus === "Paid"
@@ -46,57 +36,77 @@ export function CardListItem({ card }: CardListItemProps) {
     <TouchableOpacity
       style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => {
-        Haptics.selectionAsync();
+        if (Platform.OS !== "web") Haptics.selectionAsync();
         router.push(`/card/${card.id}` as any);
       }}
-      activeOpacity={0.7}
+      activeOpacity={0.72}
     >
-      <View style={[styles.bankBar, { backgroundColor: bankColor }]} />
+      {/* Compact card thumbnail */}
+      <View style={styles.thumbnail}>
+        <CardVisual card={card} compact />
+      </View>
 
-      <View style={styles.content}>
+      {/* Info */}
+      <View style={styles.info}>
         <View style={styles.topRow}>
-          <View style={styles.titleGroup}>
-            <Text style={[styles.bankName, { color: bankColor }]}>{card.bankName}</Text>
-            <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>
-              {card.cardName}
-            </Text>
-            <Text style={[styles.holder, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {card.cardHolderName} · ···· {card.lastFourDigits}
-            </Text>
-          </View>
-          <View style={styles.rightGroup}>
-            <PaymentStatusBadge status={card.paymentStatus} />
-            <Text
-              style={[
-                styles.dueLabel,
-                {
-                  color:
-                    card.paymentStatus === "Overdue"
-                      ? colors.destructive
-                      : card.paymentStatus === "Paid"
-                      ? colors.success
-                      : daysUntil <= 3
-                      ? colors.warning
-                      : colors.mutedForeground,
-                },
-              ]}
-            >
-              {dueLabel}
-            </Text>
-          </View>
+          <Text style={[styles.bankLabel, { color: accentColor }]} numberOfLines={1}>
+            {card.bankName}
+          </Text>
+          <PaymentStatusBadge status={card.paymentStatus} />
+        </View>
+
+        <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>
+          {card.cardName || "Credit Card"}
+        </Text>
+
+        <View style={styles.bottomRow}>
+          <Text style={[styles.holder, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {card.cardHolderName} · ···· {card.lastFourDigits}
+          </Text>
+          <Text
+            style={[
+              styles.dueLabel,
+              {
+                color:
+                  card.paymentStatus === "Overdue"
+                    ? colors.destructive
+                    : card.paymentStatus === "Paid"
+                    ? colors.success
+                    : daysUntil <= 3
+                    ? colors.warning
+                    : colors.mutedForeground,
+              },
+            ]}
+          >
+            {dueLabel}
+          </Text>
         </View>
 
         {(expiring || expired) && (
-          <View style={[styles.expiryAlert, { backgroundColor: expired ? colors.dangerLight : colors.warningLight }]}>
-            <Feather name="alert-triangle" size={11} color={expired ? colors.destructive : colors.warning} />
-            <Text style={[styles.expiryText, { color: expired ? colors.destructive : colors.warning }]}>
+          <View
+            style={[
+              styles.expiryAlert,
+              { backgroundColor: expired ? colors.dangerLight : colors.warningLight },
+            ]}
+          >
+            <Feather
+              name="alert-triangle"
+              size={10}
+              color={expired ? colors.destructive : colors.warning}
+            />
+            <Text
+              style={[
+                styles.expiryText,
+                { color: expired ? colors.destructive : colors.warning },
+              ]}
+            >
               {expired ? "Card expired" : "Expiring soon"}
             </Text>
           </View>
         )}
       </View>
 
-      <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={styles.chevron} />
+      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
     </TouchableOpacity>
   );
 }
@@ -108,44 +118,49 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: 10,
+    padding: 12,
+    gap: 12,
+  },
+  thumbnail: {
+    borderRadius: 8,
     overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  bankBar: {
-    width: 4,
-    alignSelf: "stretch",
-  },
-  content: {
+  info: {
     flex: 1,
-    padding: 14,
-    gap: 8,
+    gap: 3,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 8,
+    alignItems: "center",
   },
-  titleGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  bankName: {
+  bankLabel: {
     fontSize: 11,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.8,
     textTransform: "uppercase",
+    flex: 1,
+    marginRight: 6,
   },
   cardName: {
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },
+  bottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
+  },
   holder: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-  },
-  rightGroup: {
-    alignItems: "flex-end",
-    gap: 5,
+    flex: 1,
   },
   dueLabel: {
     fontSize: 11,
@@ -154,17 +169,15 @@ const styles = StyleSheet.create({
   expiryAlert: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
     alignSelf: "flex-start",
+    marginTop: 2,
   },
   expiryText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "Inter_600SemiBold",
-  },
-  chevron: {
-    marginRight: 12,
   },
 });

@@ -1,107 +1,358 @@
+import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import type { CreditCard } from "@/context/CardsContext";
 
-const BANK_GRADIENTS: Record<string, readonly [string, string]> = {
-  HDFC: ["#0058A2", "#003270"],
-  ICICI: ["#B22222", "#7B0000"],
-  SBI: ["#1565C0", "#0D3F7C"],
-  Axis: ["#6B21A8", "#4A0E80"],
-  Kotak: ["#C05621", "#7B3200"],
-  ONE: ["#0D4F6B", "#062535"],
-  AMEX: ["#1A7340", "#0D4A25"],
-  YES: ["#7B1FA2", "#4A0072"],
-  RBL: ["#C62828", "#8B0000"],
-  IndusInd: ["#00695C", "#003D33"],
+// ─── Bank config ────────────────────────────────────────────────────────────
+export const BANK_META: Record<string, { gradient: readonly [string, string, string]; logo: string }> = {
+  HDFC:     { gradient: ["#0A3D91", "#1565C0", "#0A3D91"], logo: "https://logo.clearbit.com/hdfcbank.com" },
+  ICICI:    { gradient: ["#9B1C1C", "#C62828", "#9B1C1C"], logo: "https://logo.clearbit.com/icicibank.com" },
+  SBI:      { gradient: ["#0D3F7C", "#1976D2", "#0D3F7C"], logo: "https://logo.clearbit.com/sbi.co.in" },
+  Axis:     { gradient: ["#4A0E80", "#7B1FA2", "#4A0E80"], logo: "https://logo.clearbit.com/axisbank.com" },
+  Kotak:    { gradient: ["#7B3200", "#C05621", "#7B3200"], logo: "https://logo.clearbit.com/kotak.com" },
+  ONE:      { gradient: ["#062535", "#0D4F6B", "#062535"], logo: "https://logo.clearbit.com/onecardglobal.com" },
+  AMEX:     { gradient: ["#0D4A25", "#1A7340", "#0D4A25"], logo: "https://logo.clearbit.com/americanexpress.com" },
+  YES:      { gradient: ["#4A0072", "#7B1FA2", "#4A0072"], logo: "https://logo.clearbit.com/yesbank.in" },
+  RBL:      { gradient: ["#8B0000", "#C62828", "#8B0000"], logo: "https://logo.clearbit.com/rblbank.com" },
+  IndusInd: { gradient: ["#003D33", "#00695C", "#003D33"], logo: "https://logo.clearbit.com/indusind.com" },
 };
 
-const DEFAULT_GRADIENT: readonly [string, string] = ["#1B2B5E", "#0A1535"];
+export const DEFAULT_META = {
+  gradient: ["#0A1535", "#1B2B5E", "#0A1535"] as const,
+  logo: null as string | null,
+};
 
+// ─── Network detection (deterministic from last-4 digits) ───────────────────
+export function getCardNetwork(
+  bankName: string,
+  lastFourDigits: string
+): "visa" | "mastercard" | "rupay" | "amex" {
+  if (bankName === "AMEX") return "amex";
+  const sum = lastFourDigits
+    .split("")
+    .reduce((acc, c) => acc + (parseInt(c) || 0), 0);
+  const index = sum % 3;
+  if (bankName === "SBI" || bankName === "ONE") {
+    return (["rupay", "visa", "mastercard"] as const)[index];
+  }
+  return (["visa", "mastercard", "rupay"] as const)[index];
+}
+
+// ─── Card network logo ───────────────────────────────────────────────────────
+export function NetworkLogo({
+  network,
+  compact = false,
+}: {
+  network: "visa" | "mastercard" | "rupay" | "amex";
+  compact?: boolean;
+}) {
+  const h = compact ? 20 : 28;
+
+  if (network === "visa") {
+    return (
+      <View style={[nStyles.visaBg, { paddingHorizontal: compact ? 5 : 7, paddingVertical: compact ? 2 : 3, borderRadius: compact ? 3 : 4 }]}>
+        <Text style={[nStyles.visaText, { fontSize: compact ? 11 : 15 }]}>VISA</Text>
+      </View>
+    );
+  }
+
+  if (network === "mastercard") {
+    const r = h * 0.52;
+    return (
+      <View style={{ width: h * 1.5, height: h, justifyContent: "center" }}>
+        <View style={[nStyles.mcRed, { width: r * 2, height: r * 2, borderRadius: r, top: (h - r * 2) / 2 }]} />
+        <View style={[nStyles.mcYellow, { width: r * 2, height: r * 2, borderRadius: r, top: (h - r * 2) / 2, left: h * 0.6 }]} />
+      </View>
+    );
+  }
+
+  if (network === "rupay") {
+    return (
+      <View style={[nStyles.rupayBg, { paddingHorizontal: compact ? 4 : 6, paddingVertical: compact ? 1 : 2, borderRadius: compact ? 3 : 4 }]}>
+        <Text style={[nStyles.rupayText, { fontSize: compact ? 9 : 12 }]}>RuPay</Text>
+      </View>
+    );
+  }
+
+  if (network === "amex") {
+    return (
+      <View style={[nStyles.amexBg, { paddingHorizontal: compact ? 4 : 6, paddingVertical: compact ? 1 : 2, borderRadius: compact ? 3 : 4 }]}>
+        <Text style={[nStyles.amexText, { fontSize: compact ? 9 : 11 }]}>AMEX</Text>
+      </View>
+    );
+  }
+
+  return null;
+}
+
+const nStyles = StyleSheet.create({
+  visaBg: { backgroundColor: "rgba(0,0,0,0.35)" },
+  visaText: { color: "#fff", fontFamily: "Inter_700Bold", fontStyle: "italic", letterSpacing: 1 },
+  mcRed: { position: "absolute", backgroundColor: "#EB001B", left: 0 },
+  mcYellow: { position: "absolute", backgroundColor: "#F79E1B", opacity: 0.9 },
+  rupayBg: { backgroundColor: "rgba(0,100,180,0.6)" },
+  rupayText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  amexBg: { backgroundColor: "rgba(255,255,255,0.25)" },
+  amexText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 1 },
+});
+
+// ─── Chip ────────────────────────────────────────────────────────────────────
+function Chip({ compact = false }: { compact?: boolean }) {
+  const w = compact ? 28 : 42;
+  const h = compact ? 20 : 30;
+  return (
+    <View style={[chipStyles.outer, { width: w, height: h, borderRadius: w * 0.14 }]}>
+      <View style={[chipStyles.center, { width: w * 0.54, height: h * 0.54, borderRadius: w * 0.08 }]} />
+      <View style={[chipStyles.lineH, { top: h * 0.47, width: w }]} />
+      <View style={[chipStyles.lineV, { left: w * 0.47, height: h }]} />
+    </View>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  outer: {
+    backgroundColor: "#D4AF37",
+    borderWidth: 1,
+    borderColor: "#C09B20",
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  center: {
+    backgroundColor: "#B8960C",
+    borderWidth: 0.5,
+    borderColor: "#9A7A00",
+  },
+  lineH: {
+    position: "absolute",
+    height: 0.5,
+    backgroundColor: "#9A7A00",
+    opacity: 0.6,
+  },
+  lineV: {
+    position: "absolute",
+    width: 0.5,
+    backgroundColor: "#9A7A00",
+    opacity: 0.6,
+  },
+});
+
+// ─── Bank logo with text fallback ────────────────────────────────────────────
+function BankLogo({
+  bankName,
+  logoUrl,
+  compact,
+}: {
+  bankName: string;
+  logoUrl: string | null;
+  compact: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const size = compact ? 22 : 32;
+
+  if (!logoUrl || failed) {
+    return (
+      <View style={[bStyles.fallback, { width: size, height: size, borderRadius: size * 0.25 }]}>
+        <Text style={[bStyles.fallbackText, { fontSize: compact ? 9 : 11 }]}>
+          {bankName.slice(0, 4).toUpperCase()}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[bStyles.logoBg, { width: size, height: size, borderRadius: size * 0.25 }]}>
+      <Image
+        source={{ uri: logoUrl }}
+        style={{ width: size * 0.8, height: size * 0.8, borderRadius: size * 0.2 }}
+        resizeMode="contain"
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
+}
+
+const bStyles = StyleSheet.create({
+  logoBg: {
+    backgroundColor: "rgba(255,255,255,0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  fallback: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fallbackText: {
+    color: "#fff",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.3,
+  },
+});
+
+// ─── Main CardVisual ─────────────────────────────────────────────────────────
 interface CardVisualProps {
   card: CreditCard;
   compact?: boolean;
 }
 
 export function CardVisual({ card, compact = false }: CardVisualProps) {
-  const gradient = BANK_GRADIENTS[card.bankName] ?? DEFAULT_GRADIENT;
+  const meta = BANK_META[card.bankName] ?? DEFAULT_META;
+  const network = getCardNetwork(card.bankName, card.lastFourDigits);
+
+  const expiryStr =
+    card.expiryMonth && card.expiryYear
+      ? `${String(card.expiryMonth).padStart(2, "0")}/${String(card.expiryYear).slice(-2)}`
+      : "••/••";
+
+  if (compact) {
+    return (
+      <LinearGradient
+        colors={meta.gradient as [string, string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.compact}
+      >
+        {/* Decorative circle */}
+        <View style={styles.compactCircle1} />
+        <View style={styles.compactCircle2} />
+
+        <View style={styles.compactTop}>
+          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact={true} />
+          <NetworkLogo network={network} compact={true} />
+        </View>
+
+        <View style={styles.compactBottom}>
+          <Chip compact />
+          <Text style={styles.compactDigits}>···· {card.lastFourDigits}</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
-      colors={gradient as [string, string]}
+      colors={meta.gradient as [string, string, string]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[styles.card, compact && styles.cardCompact]}
+      style={styles.card}
     >
+      {/* Decorative circles */}
+      <View style={styles.circle1} />
+      <View style={styles.circle2} />
+
+      {/* Top row: bank logo + contactless */}
       <View style={styles.topRow}>
-        <Text style={styles.bankName}>{card.bankName}</Text>
-        <View style={styles.chip} />
+        <View style={styles.logoGroup}>
+          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact={false} />
+          <View style={styles.bankTextGroup}>
+            <Text style={styles.bankNameText}>{card.bankName}</Text>
+            {card.cardName ? (
+              <Text style={styles.cardNameText} numberOfLines={1}>
+                {card.cardName}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <Feather name="wifi" size={22} color="rgba(255,255,255,0.75)" style={{ transform: [{ rotate: "90deg" }] }} />
       </View>
 
+      {/* Chip row */}
+      <View style={styles.chipRow}>
+        <Chip />
+      </View>
+
+      {/* Card number */}
       <Text style={styles.cardNumber}>
-        •••• •••• •••• {card.lastFourDigits}
+        ●●●●  ●●●●  ●●●●  {card.lastFourDigits}
       </Text>
 
+      {/* Bottom row */}
       <View style={styles.bottomRow}>
-        <View>
-          <Text style={styles.label}>CARD HOLDER</Text>
+        <View style={styles.holderGroup}>
+          <Text style={styles.fieldLabel}>CARD HOLDER</Text>
           <Text style={styles.holderName} numberOfLines={1}>
             {card.cardHolderName.toUpperCase()}
           </Text>
         </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={styles.label}>EXPIRES</Text>
-          <Text style={styles.expiry}>
-            {card.expiryMonth && card.expiryYear
-              ? `${String(card.expiryMonth).padStart(2, "0")}/${String(card.expiryYear).slice(-2)}`
-              : "——"}
-          </Text>
+        <View style={styles.expiryGroup}>
+          <Text style={styles.fieldLabel}>EXPIRES</Text>
+          <Text style={styles.expiryText}>{expiryStr}</Text>
         </View>
+        <NetworkLogo network={network} />
       </View>
-
-      <View style={styles.shimmer} />
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  // Full card
   card: {
     width: "100%",
     aspectRatio: 1.586,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 22,
     justifyContent: "space-between",
     overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  cardCompact: {
-    aspectRatio: 2.1,
-    padding: 16,
-    borderRadius: 14,
+  circle1: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: -80,
+    right: -60,
+  },
+  circle2: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    bottom: -50,
+    left: -30,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  bankName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
+  logoGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  chip: {
-    width: 36,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+  bankTextGroup: { gap: 1 },
+  bankNameText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.5,
+  },
+  cardNameText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    maxWidth: 150,
+  },
+  chipRow: {
+    marginTop: -6,
   },
   cardNumber: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 18,
-    letterSpacing: 4,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 17,
+    letterSpacing: 3,
     fontFamily: "Inter_500Medium",
   },
   bottomRow: {
@@ -109,32 +360,69 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  label: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 9,
-    fontFamily: "Inter_500Medium",
+  holderGroup: { flex: 1, gap: 3 },
+  expiryGroup: { marginRight: 14, gap: 3 },
+  fieldLabel: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 8,
+    fontFamily: "Inter_600SemiBold",
     letterSpacing: 1.5,
-    marginBottom: 2,
   },
   holderName: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
     letterSpacing: 0.5,
-    maxWidth: 180,
+    maxWidth: 160,
   },
-  expiry: {
-    color: "#FFFFFF",
-    fontSize: 14,
+  expiryText: {
+    color: "#fff",
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.5,
   },
-  shimmer: {
+
+  // Compact card (for list thumbnails)
+  compact: {
+    width: 80,
+    height: 52,
+    borderRadius: 8,
+    padding: 7,
+    justifyContent: "space-between",
+    overflow: "hidden",
+  },
+  compactCircle1: {
     position: "absolute",
-    top: -60,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    top: -20,
+    right: -15,
+  },
+  compactCircle2: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    bottom: -15,
+    left: -10,
+  },
+  compactTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  compactBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  compactDigits: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 8,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 1,
   },
 });
