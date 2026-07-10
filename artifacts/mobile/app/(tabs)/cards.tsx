@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,8 +20,8 @@ import type { PaymentStatus } from "@/context/CardsContext";
 import { useCards } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
 
-type FilterType = "All" | PaymentStatus;
-const FILTERS: FilterType[] = ["All", "Pending", "Paid", "Overdue"];
+type FilterType = "All" | PaymentStatus | "Frozen";
+const FILTERS: FilterType[] = ["All", "Pending", "Paid", "Overdue", "Frozen"];
 
 export default function CardsScreen() {
   const colors = useColors();
@@ -34,7 +35,9 @@ export default function CardsScreen() {
 
   const filtered = useMemo(() => {
     return activeCards.filter((card) => {
-      const matchesFilter = filter === "All" || card.paymentStatus === filter;
+      const matchesFilter =
+        filter === "All" ||
+        (filter === "Frozen" ? !!card.isFrozen : card.paymentStatus === filter);
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
@@ -47,8 +50,17 @@ export default function CardsScreen() {
   }, [activeCards, filter, search]);
 
   const filterCounts = useMemo(() => {
-    const counts: Record<FilterType, number> = { All: activeCards.length, Pending: 0, Paid: 0, Overdue: 0 };
-    activeCards.forEach((c) => { counts[c.paymentStatus]++; });
+    const counts: Record<FilterType, number> = {
+      All: activeCards.length,
+      Pending: 0,
+      Paid: 0,
+      Overdue: 0,
+      Frozen: 0,
+    };
+    activeCards.forEach((c) => {
+      counts[c.paymentStatus]++;
+      if (c.isFrozen) counts.Frozen++;
+    });
     return counts;
   }, [activeCards]);
 
@@ -98,17 +110,23 @@ export default function CardsScreen() {
       </View>
 
       {/* Filters */}
-      <View style={styles.filtersWrap}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersWrap}
+      >
         {FILTERS.map((f) => {
           const active = filter === f;
+          const isFrozenFilter = f === "Frozen";
+          const activeBg = isFrozenFilter ? colors.destructive : colors.primary;
           return (
             <TouchableOpacity
               key={f}
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor: active ? colors.primary : colors.card,
-                  borderColor: active ? colors.primary : colors.border,
+                  backgroundColor: active ? activeBg : colors.card,
+                  borderColor: active ? activeBg : colors.border,
                 },
               ]}
               onPress={() => {
@@ -116,6 +134,14 @@ export default function CardsScreen() {
                 setFilter(f);
               }}
             >
+              {isFrozenFilter && (
+                <Feather
+                  name="lock"
+                  size={11}
+                  color={active ? "#fff" : colors.mutedForeground}
+                  style={{ marginRight: 4 }}
+                />
+              )}
               <Text
                 style={[
                   styles.filterText,
@@ -127,7 +153,7 @@ export default function CardsScreen() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       <FlatList
         data={filtered}
@@ -196,6 +222,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 100,
