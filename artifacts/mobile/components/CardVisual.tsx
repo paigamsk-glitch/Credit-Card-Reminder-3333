@@ -249,6 +249,36 @@ function GradientCard({ card, compact }: { card: CreditCard; compact: boolean })
   );
 }
 
+// ─── Compact icon thumbnail (used in list/reminders/overview) ────────────────
+// Simple flat-color rounded-square icon with chip + network badge — same style
+// used for banks without a real sprite, applied consistently to every card.
+export function CardIcon({ card, size = 80 }: { card: CreditCard; size?: number }) {
+  const meta = BANK_META[card.bankName] ?? DEFAULT_META;
+  const network = resolveNetwork(card);
+  const w = size;
+  const h = size * 0.65;
+
+  return (
+    <LinearGradient
+      colors={meta.gradient as [string, string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.compact, { width: w, height: h, borderRadius: w * 0.1, padding: w * 0.09 }]}
+    >
+      <View style={styles.compactCircle1} />
+      <View style={styles.compactCircle2} />
+      <View style={styles.compactTop}>
+        <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact />
+        <NetworkLogo network={network} compact />
+      </View>
+      <View style={styles.compactBottom}>
+        <Chip compact />
+        <Text style={styles.compactDigits}>···· {card.lastFourDigits}</Text>
+      </View>
+    </LinearGradient>
+  );
+}
+
 // ─── Main CardVisual ──────────────────────────────────────────────────────────
 interface CardVisualProps {
   card: CreditCard;

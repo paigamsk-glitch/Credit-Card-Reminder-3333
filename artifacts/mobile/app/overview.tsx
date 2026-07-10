@@ -13,8 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CardSprite, hasSprite } from "@/components/CardSprite";
-import { BANK_META, DEFAULT_META, CardVisual } from "@/components/CardVisual";
+import { BANK_META, DEFAULT_META, CardIcon } from "@/components/CardVisual";
 import { useCards } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
 import type { CreditCard } from "@/context/CardsContext";
@@ -30,13 +29,7 @@ function CardThumb({ card }: { card: CreditCard }) {
       }}
       activeOpacity={0.8}
     >
-      {hasSprite(card.bankName) ? (
-        <CardSprite card={card} displayWidth={THUMB_W} borderRadius={10} />
-      ) : (
-        <View style={{ width: THUMB_W }}>
-          <CardVisual card={card} compact width={THUMB_W} />
-        </View>
-      )}
+      <CardIcon card={card} size={THUMB_W} />
     </TouchableOpacity>
   );
 }

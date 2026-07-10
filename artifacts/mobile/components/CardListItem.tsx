@@ -7,7 +7,7 @@ import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native
 import type { CreditCard } from "@/context/CardsContext";
 import { getDaysUntilDue, isExpired, isExpiringSoon } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
-import { CardVisual, BANK_META, DEFAULT_META } from "./CardVisual";
+import { CardIcon, BANK_META, DEFAULT_META } from "./CardVisual";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 
 interface CardListItemProps {
@@ -43,7 +43,7 @@ export function CardListItem({ card }: CardListItemProps) {
     >
       {/* Compact card thumbnail */}
       <View style={styles.thumbnail}>
-        <CardVisual card={card} compact />
+        <CardIcon card={card} size={80} />
       </View>
 
       {/* Info */}

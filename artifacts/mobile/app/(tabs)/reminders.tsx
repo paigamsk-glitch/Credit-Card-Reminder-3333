@@ -12,8 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CardSprite, hasSprite } from "@/components/CardSprite";
-import { BANK_META, DEFAULT_META, NetworkLogo, resolveNetwork } from "@/components/CardVisual";
+import { CardIcon } from "@/components/CardVisual";
 import { PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import type { CreditCard } from "@/context/CardsContext";
 import { getDaysUntilDue, useCards } from "@/context/CardsContext";
@@ -63,36 +62,7 @@ function groupReminders(cards: CreditCard[]): ReminderGroup[] {
 
 // Small card thumbnail for reminder rows
 function ReminderThumbnail({ card }: { card: CreditCard }) {
-  const THUMB_W = 72;
-  if (hasSprite(card.bankName)) {
-    return <CardSprite card={card} displayWidth={THUMB_W} borderRadius={7} />;
-  }
-  // Gradient fallback mini card
-  const meta = BANK_META[card.bankName] ?? DEFAULT_META;
-  const network = resolveNetwork(card);
-  const { LinearGradient } = require("expo-linear-gradient");
-  const { View: V, Text: T, StyleSheet: SS } = require("react-native");
-  const s = SS.create({
-    wrap: { width: THUMB_W, borderRadius: 7, overflow: "hidden" },
-    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    digits: { color: "rgba(255,255,255,0.85)", fontSize: 7, fontFamily: "Inter_500Medium", letterSpacing: 0.8 },
-  });
-  return (
-    <LinearGradient
-      colors={meta.gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[s.wrap, { padding: 6, aspectRatio: 1.586 }]}
-    >
-      <V style={s.row}>
-        <T style={{ color: "#fff", fontSize: 7, fontFamily: "Inter_700Bold" }} numberOfLines={1}>
-          {card.bankName}
-        </T>
-        <NetworkLogo network={network} compact />
-      </V>
-      <T style={s.digits}>···· {card.lastFourDigits}</T>
-    </LinearGradient>
-  );
+  return <CardIcon card={card} size={72} />;
 }
 
 function ReminderCard({ card }: { card: CreditCard }) {
