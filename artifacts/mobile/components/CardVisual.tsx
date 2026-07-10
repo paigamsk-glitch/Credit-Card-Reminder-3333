@@ -1,23 +1,25 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 import type { CreditCard } from "@/context/CardsContext";
-import { CardSprite, hasSprite } from "./CardSprite";
 
 // ─── Bank config ─────────────────────────────────────────────────────────────
-export const BANK_META: Record<string, { gradient: readonly [string, string, string]; logo: string }> = {
-  HDFC:     { gradient: ["#0A3D91", "#1565C0", "#0A3D91"], logo: "https://logo.clearbit.com/hdfcbank.com" },
-  ICICI:    { gradient: ["#9B1C1C", "#C62828", "#9B1C1C"], logo: "https://logo.clearbit.com/icicibank.com" },
-  SBI:      { gradient: ["#0D3F7C", "#1976D2", "#0D3F7C"], logo: "https://logo.clearbit.com/sbi.co.in" },
-  Axis:     { gradient: ["#4A0E80", "#7B1FA2", "#4A0E80"], logo: "https://logo.clearbit.com/axisbank.com" },
-  Kotak:    { gradient: ["#7B3200", "#C05621", "#7B3200"], logo: "https://logo.clearbit.com/kotak.com" },
-  ONE:      { gradient: ["#062535", "#0D4F6B", "#062535"], logo: "https://logo.clearbit.com/onecardglobal.com" },
-  AMEX:     { gradient: ["#0D4A25", "#1A7340", "#0D4A25"], logo: "https://logo.clearbit.com/americanexpress.com" },
-  YES:      { gradient: ["#4A0072", "#7B1FA2", "#4A0072"], logo: "https://logo.clearbit.com/yesbank.in" },
-  RBL:      { gradient: ["#8B0000", "#C62828", "#8B0000"], logo: "https://logo.clearbit.com/rblbank.com" },
-  IndusInd: { gradient: ["#003D33", "#00695C", "#003D33"], logo: "https://logo.clearbit.com/indusind.com" },
+// All cards share one flat, dark navy-style visual language (see reference
+// design): a dark badge with the bank's short code, gold chip, dotted number
+// groups, and a network pill — regardless of bank, for a consistent look.
+export const BANK_META: Record<string, { gradient: readonly [string, string, string]; logo: string | null }> = {
+  HDFC:     { gradient: ["#0A3D91", "#1565C0", "#0A3D91"], logo: null },
+  ICICI:    { gradient: ["#9B1C1C", "#C62828", "#9B1C1C"], logo: null },
+  SBI:      { gradient: ["#0D3F7C", "#1976D2", "#0D3F7C"], logo: null },
+  Axis:     { gradient: ["#4A0E80", "#7B1FA2", "#4A0E80"], logo: null },
+  Kotak:    { gradient: ["#7B3200", "#C05621", "#7B3200"], logo: null },
+  ONE:      { gradient: ["#062535", "#0D4F6B", "#062535"], logo: null },
+  AMEX:     { gradient: ["#0D4A25", "#1A7340", "#0D4A25"], logo: null },
+  YES:      { gradient: ["#4A0072", "#7B1FA2", "#4A0072"], logo: null },
+  RBL:      { gradient: ["#8B0000", "#C62828", "#8B0000"], logo: null },
+  IndusInd: { gradient: ["#003D33", "#00695C", "#003D33"], logo: null },
 };
 
 export const DEFAULT_META = {
@@ -135,48 +137,74 @@ const chipStyles = StyleSheet.create({
   lineV: { position: "absolute", width: 0.5, backgroundColor: "#9A7A00", opacity: 0.6 },
 });
 
-// ─── Bank logo with fallback ──────────────────────────────────────────────────
-function BankLogo({ bankName, logoUrl, compact }: { bankName: string; logoUrl: string | null; compact: boolean }) {
-  const [failed, setFailed] = useState(false);
+// ─── Bank badge (flat dark square with bank code, matches reference design) ──
+function BankLogo({ bankName, compact }: { bankName: string; compact: boolean }) {
   const size = compact ? 22 : 32;
-
-  if (!logoUrl || failed) {
-    return (
-      <View style={[bStyles.fallback, { width: size, height: size, borderRadius: size * 0.25 }]}>
-        <Text style={[bStyles.fallbackText, { fontSize: compact ? 9 : 11 }]}>
-          {bankName.slice(0, 4).toUpperCase()}
-        </Text>
-      </View>
-    );
-  }
+  const code = bankName.length <= 4 ? bankName.toUpperCase() : bankName.slice(0, 3).toUpperCase();
 
   return (
-    <View style={[bStyles.logoBg, { width: size, height: size, borderRadius: size * 0.25 }]}>
-      <Image
-        source={{ uri: logoUrl }}
-        style={{ width: size * 0.8, height: size * 0.8, borderRadius: size * 0.2 }}
-        resizeMode="contain"
-        onError={() => setFailed(true)}
-      />
+    <View style={[bStyles.badge, { width: size, height: size, borderRadius: size * 0.28 }]}>
+      <Text style={[bStyles.badgeText, { fontSize: compact ? 8 : 10 }]} numberOfLines={1}>
+        {code}
+      </Text>
     </View>
   );
 }
 
 const bStyles = StyleSheet.create({
-  logoBg: {
-    backgroundColor: "rgba(255,255,255,0.95)",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  fallback: {
-    backgroundColor: "rgba(255,255,255,0.2)",
+  badge: {
+    backgroundColor: "rgba(0,0,0,0.28)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
-  fallbackText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+  badgeText: { color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+});
+
+// ─── Dotted card number groups (matches reference: dots + visible last four) ─
+function CardNumberDots({ lastFour, compact = false }: { lastFour: string; compact?: boolean }) {
+  const dotSize = compact ? 5 : 8;
+  const groups = compact ? 2 : 3;
+
+  return (
+    <View style={[dotStyles.row, { gap: compact ? 6 : 10 }]}>
+      {Array.from({ length: groups }).map((_, g) => (
+        <View key={g} style={[dotStyles.group, { gap: compact ? 2 : 4 }]}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                dotStyles.dot,
+                { width: dotSize, height: dotSize, borderRadius: dotSize / 2 },
+              ]}
+            />
+          ))}
+        </View>
+      ))}
+      <Text style={compact ? dotStyles.digitsCompact : dotStyles.digits}>{lastFour}</Text>
+    </View>
+  );
+}
+
+const dotStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center" },
+  group: { flexDirection: "row" },
+  dot: { backgroundColor: "rgba(255,255,255,0.85)" },
+  digits: {
+    color: "rgba(255,255,255,0.95)",
+    fontSize: 17,
+    letterSpacing: 2,
+    fontFamily: "Inter_500Medium",
+    marginLeft: 4,
+  },
+  digitsCompact: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 8,
+    letterSpacing: 0.5,
+    fontFamily: "Inter_500Medium",
+    marginLeft: 2,
+  },
 });
 
 // ─── Gradient fallback card (when no sprite) ──────────────────────────────────
@@ -200,12 +228,12 @@ function GradientCard({ card, compact }: { card: CreditCard; compact: boolean })
         <View style={styles.compactCircle1} />
         <View style={styles.compactCircle2} />
         <View style={styles.compactTop}>
-          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact />
+          <BankLogo bankName={card.bankName} compact />
           <NetworkLogo network={network} compact />
         </View>
         <View style={styles.compactBottom}>
           <Chip compact />
-          <Text style={styles.compactDigits}>···· {card.lastFourDigits}</Text>
+          <CardNumberDots lastFour={card.lastFourDigits} compact />
         </View>
       </LinearGradient>
     );
@@ -222,7 +250,7 @@ function GradientCard({ card, compact }: { card: CreditCard; compact: boolean })
       <View style={styles.circle2} />
       <View style={styles.topRow}>
         <View style={styles.logoGroup}>
-          <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact={false} />
+          <BankLogo bankName={card.bankName} compact={false} />
           <View style={styles.bankTextGroup}>
             <Text style={styles.bankNameText}>{card.bankName}</Text>
             {card.cardName ? (
@@ -233,7 +261,7 @@ function GradientCard({ card, compact }: { card: CreditCard; compact: boolean })
         <Feather name="wifi" size={22} color="rgba(255,255,255,0.75)" style={{ transform: [{ rotate: "90deg" }] }} />
       </View>
       <View style={styles.chipRow}><Chip /></View>
-      <Text style={styles.cardNumber}>●●●●  ●●●●  ●●●●  {card.lastFourDigits}</Text>
+      <CardNumberDots lastFour={card.lastFourDigits} />
       <View style={styles.bottomRow}>
         <View style={styles.holderGroup}>
           <Text style={styles.fieldLabel}>CARD HOLDER</Text>
@@ -268,37 +296,27 @@ export function CardIcon({ card, size = 80 }: { card: CreditCard; size?: number 
       <View style={styles.compactCircle1} />
       <View style={styles.compactCircle2} />
       <View style={styles.compactTop}>
-        <BankLogo bankName={card.bankName} logoUrl={meta.logo} compact />
+        <BankLogo bankName={card.bankName} compact />
         <NetworkLogo network={network} compact />
       </View>
       <View style={styles.compactBottom}>
         <Chip compact />
-        <Text style={styles.compactDigits}>···· {card.lastFourDigits}</Text>
+        <CardNumberDots lastFour={card.lastFourDigits} compact />
       </View>
     </LinearGradient>
   );
 }
 
 // ─── Main CardVisual ──────────────────────────────────────────────────────────
+// All cards use the same flat gradient design (see reference image) for a
+// consistent, clean look regardless of bank.
 interface CardVisualProps {
   card: CreditCard;
   compact?: boolean;
   width?: number;
 }
 
-export function CardVisual({ card, compact = false, width }: CardVisualProps) {
-  if (hasSprite(card.bankName)) {
-    if (compact) {
-      const w = width ?? 80;
-      return <CardSprite card={card} displayWidth={w} borderRadius={8} />;
-    }
-    return (
-      <View style={styles.spriteFullWrap}>
-        <CardSprite card={card} displayWidth={width ?? 340} borderRadius={18} />
-      </View>
-    );
-  }
-
+export function CardVisual({ card, compact = false }: CardVisualProps) {
   return <GradientCard card={card} compact={compact} />;
 }
 
