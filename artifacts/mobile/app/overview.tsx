@@ -13,9 +13,33 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BANK_META, DEFAULT_META } from "@/components/CardVisual";
+import { CardSprite, hasSprite } from "@/components/CardSprite";
+import { BANK_META, DEFAULT_META, CardVisual } from "@/components/CardVisual";
 import { useCards } from "@/context/CardsContext";
 import { useColors } from "@/hooks/useColors";
+import type { CreditCard } from "@/context/CardsContext";
+
+function CardThumb({ card }: { card: CreditCard }) {
+  const THUMB_W = 110;
+  return (
+    <TouchableOpacity
+      style={overStyles.thumbCard}
+      onPress={() => {
+        if (Platform.OS !== "web") Haptics.selectionAsync();
+        router.push(`/card/${card.id}` as any);
+      }}
+      activeOpacity={0.8}
+    >
+      {hasSprite(card.bankName) ? (
+        <CardSprite card={card} displayWidth={THUMB_W} borderRadius={10} />
+      ) : (
+        <View style={{ width: THUMB_W }}>
+          <CardVisual card={card} compact width={THUMB_W} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
 
 function getBankColor(bank: string, idx: number): string {
   const meta = BANK_META[bank];
@@ -67,6 +91,16 @@ const overStyles = StyleSheet.create({
     justifyContent: "center",
   },
   logoFallbackText: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  thumbRow: { flexDirection: "row", gap: 10, paddingVertical: 4, paddingRight: 8 },
+  thumbCard: {
+    borderRadius: 10,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
 });
 
 interface BarData {
@@ -169,6 +203,24 @@ export default function OverviewScreen() {
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>My Credit Cards Overview</Text>
       </View>
+
+      {/* Total Cards Gallery */}
+      {activeCards.length > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Total Cards ({activeCards.length})
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={overStyles.thumbRow}
+          >
+            {activeCards.map((card) => (
+              <CardThumb key={card.id} card={card} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Bar Chart Card */}
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
