@@ -9,6 +9,7 @@ import {
   scheduleCardNotifications,
   scheduleNextCycleNotification,
 } from "@/lib/notifications";
+import { syncWidgetSummary } from "@/lib/widgetSync";
 
 export type PaymentStatus = "Pending" | "Paid" | "Overdue";
 
@@ -287,6 +288,10 @@ export function CardsProvider({ children }: { children: React.ReactNode }) {
 
   const activeCards = cards.filter((c) => c.isActive);
   const stats = computeStats(cards);
+
+  useEffect(() => {
+    syncWidgetSummary(cards).catch(() => {});
+  }, [cards]);
 
   return (
     <CardsContext.Provider

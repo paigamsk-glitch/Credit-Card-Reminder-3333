@@ -1,0 +1,11 @@
+/** @type {import('@bacons/apple-targets').Config} */
+module.exports = {
+  type: "widget",
+  name: "DueSummaryWidget",
+  colors: {
+    $accent: "#F0A500",
+  },
+  entitlements: {
+    "com.apple.security.application-groups": ["group.com.cardtracker.widget"],
+  },
+};

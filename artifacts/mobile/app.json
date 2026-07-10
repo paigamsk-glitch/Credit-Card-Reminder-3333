@@ -14,9 +14,14 @@
       "backgroundColor": "#1B2B5E"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cardtracker.app",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.cardtracker.widget"]
+      }
     },
     "android": {
+      "package": "com.cardtracker.app",
       "permissions": ["RECEIVE_BOOT_COMPLETED", "VIBRATE"]
     },
     "web": {
@@ -38,7 +43,26 @@
           "color": "#1B2B5E",
           "sounds": []
         }
-      ]
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "DueSummary",
+              "label": "Card Tracker — Next Due",
+              "description": "Shows your next payment due date or overdue count.",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 1800000,
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
+        }
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
