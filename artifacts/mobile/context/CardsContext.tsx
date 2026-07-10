@@ -29,6 +29,7 @@ export interface CreditCard {
   createdAt?: string;
   notes?: string | null;
   network?: string | null;
+  isFrozen?: boolean;
 }
 
 export interface CardStats {
@@ -139,6 +140,7 @@ function normalizeCard(raw: Record<string, unknown>): CreditCard {
     createdAt: (raw.createdAt ?? raw.created_at) as string | undefined,
     notes: raw.notes as string | null | undefined,
     network: raw.network as string | null | undefined,
+    isFrozen: Boolean(raw.isFrozen ?? raw.is_frozen ?? false),
   };
   card.paymentStatus = computeStatus(card);
   return card;

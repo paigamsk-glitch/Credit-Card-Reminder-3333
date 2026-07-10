@@ -22,6 +22,7 @@ export const creditCardsTable = pgTable("credit_cards", {
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
   network: text("network"),
+  isFrozen: boolean("is_frozen").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

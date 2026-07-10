@@ -91,6 +91,7 @@ router.post("/cards", async (req: AuthRequest, res) => {
       phoneNumber,
       isActive,
       notes,
+      isFrozen,
     } = req.body;
 
     const [card] = await db
@@ -110,6 +111,7 @@ router.post("/cards", async (req: AuthRequest, res) => {
         phoneNumber: phoneNumber ?? null,
         isActive: isActive ?? true,
         notes: notes ?? null,
+        isFrozen: isFrozen ?? false,
       })
       .returning();
 

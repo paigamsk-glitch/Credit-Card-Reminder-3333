@@ -52,7 +52,14 @@ export function CardListItem({ card }: CardListItemProps) {
           <Text style={[styles.bankLabel, { color: accentColor }]} numberOfLines={1}>
             {card.bankName}
           </Text>
-          <PaymentStatusBadge status={card.paymentStatus} />
+          <View style={styles.badgeGroup}>
+            {card.isFrozen && (
+              <View style={[styles.frozenBadge, { backgroundColor: colors.dangerLight }]}>
+                <Feather name="lock" size={10} color={colors.destructive} />
+              </View>
+            )}
+            <PaymentStatusBadge status={card.paymentStatus} />
+          </View>
         </View>
 
         <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>
@@ -138,6 +145,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  badgeGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  frozenBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   bankLabel: {
     fontSize: 11,

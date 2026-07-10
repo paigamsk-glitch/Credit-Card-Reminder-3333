@@ -95,6 +95,11 @@ export default function CardDetailScreen() {
     await updateCard(card.id, { isActive: !card.isActive });
   };
 
+  const handleToggleFrozen = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await updateCard(card.id, { isFrozen: !card.isFrozen });
+  };
+
   const paidDateFormatted = card.paidDate
     ? new Date(card.paidDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "—";
@@ -116,6 +121,12 @@ export default function CardDetailScreen() {
       {/* Card Visual */}
       <View style={styles.cardWrap}>
         <CardVisual card={card} />
+        {card.isFrozen && (
+          <View style={[styles.frozenOverlay, { backgroundColor: "rgba(15,25,50,0.45)" }]}>
+            <Feather name="lock" size={28} color="#fff" />
+            <Text style={styles.frozenOverlayText}>Card Frozen</Text>
+          </View>
+        )}
       </View>
 
       {/* Status & Due */}
@@ -253,6 +264,36 @@ export default function CardDetailScreen() {
         </View>
       </View>
 
+      {/* Freeze Toggle */}
+      <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.detailSectionTitle, { color: colors.mutedForeground }]}>CARD STATUS</Text>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleIcon}>
+            <Feather
+              name={card.isFrozen ? "lock" : "unlock"}
+              size={20}
+              color={card.isFrozen ? colors.destructive : colors.mutedForeground}
+            />
+          </View>
+          <View style={styles.toggleInfo}>
+            <Text style={[styles.toggleLabel, { color: colors.foreground }]}>
+              {card.isFrozen ? "Card marked frozen" : "Card active"}
+            </Text>
+            <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>
+              {card.isFrozen
+                ? "Reminder that you froze this card with the bank"
+                : "This is a reference note only — it doesn't freeze the card with your bank"}
+            </Text>
+          </View>
+          <Switch
+            value={!!card.isFrozen}
+            onValueChange={handleToggleFrozen}
+            trackColor={{ false: colors.muted, true: colors.destructive }}
+            thumbColor={card.isFrozen ? "#fff" : "#ccc"}
+          />
+        </View>
+      </View>
+
       {/* Card Details */}
       <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.detailSectionTitle, { color: colors.mutedForeground }]}>CARD DETAILS</Text>
@@ -295,7 +336,19 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   notFound: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   notFoundText: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  cardWrap: { marginBottom: 4 },
+  cardWrap: { marginBottom: 4, position: "relative" },
+  frozenOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  frozenOverlayText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   statusRow: {
     flexDirection: "row",
     borderRadius: 14,
