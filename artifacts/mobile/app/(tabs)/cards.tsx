@@ -118,7 +118,7 @@ export default function CardsScreen() {
         {FILTERS.map((f) => {
           const active = filter === f;
           const isFrozenFilter = f === "Frozen";
-          const activeBg = isFrozenFilter ? colors.destructive : colors.primary;
+          const activeBg = colors.primary;
           return (
             <TouchableOpacity
               key={f}
