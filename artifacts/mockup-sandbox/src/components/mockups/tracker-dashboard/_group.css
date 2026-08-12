@@ -1,0 +1,59 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap");
+
+:root {
+  --background: 220 55% 96%;
+  --foreground: 221 48% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 221 48% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 221 48% 11%;
+  --primary: 224 53% 24%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 219 50% 92%;
+  --secondary-foreground: 224 53% 24%;
+  --muted: 219 50% 92%;
+  --muted-foreground: 217 18% 46%;
+  --accent: 42 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 216 33% 85%;
+  --input: 216 33% 85%;
+  --ring: 224 53% 24%;
+  --radius: 14px;
+}
+
+.dark {
+  --background: 224 53% 8%;
+  --foreground: 0 0% 98%;
+  --card: 224 53% 10%;
+  --card-foreground: 0 0% 98%;
+  --popover: 224 53% 10%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 224 53% 10%;
+  --secondary: 224 33% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 224 33% 16%;
+  --muted-foreground: 217 11% 65%;
+  --accent: 224 33% 16%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 224 33% 16%;
+  --input: 224 33% 16%;
+  --ring: 214 32% 91%;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Inter", sans-serif;
+}
